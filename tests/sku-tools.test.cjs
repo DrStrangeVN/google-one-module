@@ -212,7 +212,7 @@ test("report displays captured IDs and test sources without external assets", ()
   run("g1-acq.js", { body: SOURCE, storage });
   const { payload } = run("g1-sku-report.js", { url: REPORT, storage });
   assert.equal(payload.response.status, 200);
-  assert.match(payload.response.body, /Google One SKU 本地报告/);
+  assert.match(payload.response.body, /Báo cáo Google One SKU nội bộ/);
   assert(payload.response.body.includes(SOURCE));
   assert(payload.response.body.includes(TARGET));
   assert(payload.response.body.includes("?format=json"));
@@ -235,8 +235,8 @@ test("report exports each actual target and separates annual hits from total hit
     id: THIRTY, count: 1, to: THIRTY_FALLBACK, fallback: true
   });
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
-  assert(html.includes("最近一次三档映射"));
-  assert(html.includes("其中 2TB：1"));
+  assert(html.includes("Lần chạy mapping 3 mức gần nhất"));
+  assert(html.includes("Trong đó 2TB: 1"));
   assert(html.includes(TWENTY_TARGET));
   assert(html.includes(THIRTY_FALLBACK));
 });
@@ -257,7 +257,7 @@ test("new report displays existing v1 records with their original 2TB target", (
     status: "no-match", matchedFrom: []
   }));
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
-  assert(html.includes("旧 v1 记录：本次响应未命中 iOS 2TB 前缀"));
+  assert(html.includes("Bản ghi v1 cũ: response không khớp tiền tố iOS 2TB"));
 });
 
 test("JSON export is limited to report fields and escapes untrusted HTML text", () => {
@@ -309,7 +309,7 @@ test("the new installer replaces the old entry and all modules share one fixed r
     if (file === "g1-acq-v7.sgmodule") assert.match(module, /^#!name=G1 ACQ$/m);
     for (const script of scripts) {
       const url = script.match(/script-path=([^,\s]+)/)[1];
-      assert.match(url, /^https:\/\/cdn\.jsdelivr\.net\/gh\/crhywun\/g1-acq@v7\.0\.0\/[a-z0-9.-]+\.js$/);
+      assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/DrStrangeVN\/g1-acq-vi\/main\/[a-z0-9.-]+\.js$/);
       const base = url.slice(0, url.lastIndexOf("/") + 1);
       if (!scriptBase) scriptBase = base;
       assert.equal(base, scriptBase);

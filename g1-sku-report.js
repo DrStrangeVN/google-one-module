@@ -18,9 +18,9 @@
     try {
       var scanCleared = $persistentStore.write("{}", SCAN_KEY);
       var testCleared = $persistentStore.write("{}", TEST_KEY);
-      clearMessage = scanCleared && testCleared ? "本工具的两份本地记录已清空。" : "本地记录清空未完成。";
+      clearMessage = scanCleared && testCleared ? "Đã xóa hai bản ghi cục bộ của công cụ." : "Chưa thể xóa hoàn toàn bản ghi cục bộ.";
     } catch (error) {
-      clearMessage = "本地存储接口暂未就绪。";
+      clearMessage = "Giao diện lưu trữ cục bộ chưa sẵn sàng.";
     }
   }
 
@@ -107,47 +107,47 @@
     });
   }
   function table(items, withTime) {
-    if (!items.length) return "<p>暂无记录。</p>";
-    return "<div class=scroll><table><thead><tr><th>完整商品编号</th><th>次数</th>" +
-      (withTime ? "<th>最近发现时间（UTC）</th>" : "<th>实际目标 SKU</th><th>备用档</th>") + "</tr></thead><tbody>" +
+    if (!items.length) return "<p>Chưa có bản ghi.</p>";
+    return "<div class=scroll><table><thead><tr><th>Mã SKU đầy đủ</th><th>Số lần</th>" +
+      (withTime ? "<th>Lần thấy gần nhất (UTC)</th>" : "<th>SKU đích thực tế</th><th>Dự phòng</th>") + "</tr></thead><tbody>" +
       items.map(function (row) {
         return "<tr><td><code>" + escape(row.id) + "</code></td><td>" + row.count + "</td>" +
           (withTime ? "<td>" + escape(row.lastSeen) + "</td>" :
-            "<td><code>" + escape(row.to || "未记录") + "</code></td><td>" + (row.fallback ? "75p" : "否") + "</td>") + "</tr>";
+            "<td><code>" + escape(row.to || "Chưa ghi nhận") + "</code></td><td>" + (row.fallback ? "75p" : "Không") + "</td>") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
   var statuses = {
-    "rewritten": "已执行字符串替换",
-    "no-match": "本次响应未命中三档映射中的源商品",
-    "non-text": "本次响应没有可处理的文本正文"
+    "rewritten": "Đã thực hiện ghi đè chuỗi",
+    "no-match": "Response lần này không khớp SKU nguồn nào trong 3 mức",
+    "non-text": "Response lần này không có nội dung văn bản để xử lý"
   };
   var status = Object.prototype.hasOwnProperty.call(statuses, report.test.status) ?
-    statuses[report.test.status] : "暂无测试执行记录";
+    statuses[report.test.status] : "Chưa có bản ghi chạy test";
   if (report.test.version === "pro-annual-test-v1" && report.test.status === "no-match") {
-    status = "旧 v1 记录：本次响应未命中 iOS 2TB 前缀";
+    status = "Bản ghi v1 cũ: response không khớp tiền tố iOS 2TB";
   }
   var html = [
-    "<!doctype html><html lang=zh-CN><meta charset=utf-8>",
-    "<meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Google One SKU 本地报告</title>",
+    "<!doctype html><html lang=vi><meta charset=utf-8>",
+    "<meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Báo cáo Google One SKU nội bộ</title>",
     "<style>body{font:16px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;max-width:960px;margin:24px auto;padding:0 18px;color:#1c2737;background:#f5f7fa}section{background:white;border:1px solid #dde3ec;border-radius:12px;padding:18px;margin:18px 0}h1{font-size:24px}h2{font-size:20px}code{overflow-wrap:anywhere}a{color:#1259be;margin-right:18px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.scroll{overflow:auto}.note{color:#46556b}button{font:inherit;padding:8px 14px}</style>",
-    "<h1>Google One SKU 本地报告</h1>",
-    "<p class=note>此页由手机上的 Shadowrocket 脚本生成；没有向外发送采集数据。</p>",
-    "<p><a href=\"" + ROOT + "\">刷新</a><a href=\"" + ROOT + "?format=json\">导出 JSON</a></p>",
+    "<h1>Báo cáo Google One SKU nội bộ</h1>",
+    "<p class=note>Trang này được tạo trực tiếp bởi script Shadowrocket trên máy; không gửi dữ liệu ra ngoài.</p>",
+    "<p><a href=\"" + ROOT + "\">Làm mới</a><a href=\"" + ROOT + "?format=json\">Xuất JSON</a></p>",
     clearMessage ? "<p>" + escape(clearMessage) + "</p>" : "",
-    storageAvailable ? "" : "<p>本地存储接口暂未就绪；此页尚未读取到采集记录。</p>",
-    "<section><h2>最近一次三档映射</h2>",
-    "<p>版本：" + escape(report.test.version || "暂无") + "<br>状态：" + escape(status) + "；总替换次数：" + report.test.hitCount + "；其中 2TB：" + report.test.annualHitCount + "</p>",
-    "<p>2TB 源前缀：<code>g1.ios.2tb.</code><br>2TB 固定目标：<code>g1.2tb.ai.annual</code><br>20TB / 30TB 沿用旧优惠映射与 75p 回退；各档实际目标见下表。<br>执行时间（UTC）：" + escape(report.test.updatedAt || "暂无") + "</p>",
-    "<p class=note>这里记录的是脚本执行结果；商品是否被 App Store 识别、价格和周期需查看购买面板。</p>",
+    storageAvailable ? "" : "<p>Giao diện lưu trữ cục bộ chưa sẵn sàng; chưa thể đọc bản ghi.</p>",
+    "<section><h2>Lần chạy mapping 3 mức gần nhất</h2>",
+    "<p>Phiên bản: " + escape(report.test.version || "Chưa có") + "<br>Trạng thái: " + escape(status) + "; Tổng số lần thay thế: " + report.test.hitCount + "; Trong đó 2TB: " + report.test.annualHitCount + "</p>",
+    "<p>Tiền tố nguồn 2TB: <code>g1.ios.2tb.</code><br>Đích cố định 2TB: <code>g1.2tb.ai.annual</code><br>20TB / 30TB giữ nguyên mapping ưu đãi cũ &amp; fallback 75p; chi tiết xem bảng dưới.<br>Thời gian chạy (UTC): " + escape(report.test.updatedAt || "Chưa có") + "</p>",
+    "<p class=note>Đây là kết quả thực thi script; việc App Store có nhận diện gói, giá và chu kỳ hay không cần kiểm tra trực tiếp trên bảng thanh toán.</p>",
     table(report.test.matchedFrom, false), "</section>",
-    "<section><h2>浏览页面时采集到的候选 SKU</h2>",
-    "<p>扫描文本响应：" + report.scan.scannedResponses + "；含候选 SKU 的响应：" + report.scan.matchedResponses + "；累计编号：" + report.scan.skus.length + "</p>",
-    "<p class=note>数据来自 one.google.com 已浏览页面中的字符串，并非商店的完整商品目录；此采集器保持原响应正文。</p>",
-    report.scan.truncated ? "<p>记录已达到 300 个上限；清空后可重新采集目标页面。</p>" : "",
+    "<section><h2>SKU thu thập được khi duyệt trang</h2>",
+    "<p>Số response đã quét: " + report.scan.scannedResponses + "; Response có SKU: " + report.scan.matchedResponses + "; Tổng số mã: " + report.scan.skus.length + "</p>",
+    "<p class=note>Dữ liệu trích từ chuỗi xuất hiện trên các trang one.google.com đã mở, không phải toàn bộ danh mục Store; bộ thu thập giữ nguyên response gốc.</p>",
+    report.scan.truncated ? "<p>Đã đạt giới hạn 300 mã; hãy xóa dữ liệu cũ rồi quét lại trang mục tiêu.</p>" : "",
     table(report.scan.skus, true),
-    "<p>更新时间（UTC）：" + escape(report.scan.updatedAt || "暂无") + "</p></section>",
-    "<form method=get action=\"" + ROOT + "\"><button name=clear value=1>清空本工具的采集与测试记录</button></form>",
-    "<p class=note>采集时仅启用 G1 SKU Scan；测试时仅启用 G1 ACQ，停用采集器和重复的 G1 Pro Annual Test 模块。</p></html>"
+    "<p>Thời gian cập nhật (UTC): " + escape(report.scan.updatedAt || "Chưa có") + "</p></section>",
+    "<form method=get action=\"" + ROOT + "\"><button name=clear value=1>Xóa dữ liệu quét &amp; test của công cụ</button></form>",
+    "<p class=note>Khi quét chỉ bật G1 SKU Scan; khi test chỉ bật G1 ACQ, tắt bộ quét và module G1 Pro Annual Test trùng lặp.</p></html>"
   ].join("");
   $done({ response: { status: 200, headers: headers, body: html } });
 })();
