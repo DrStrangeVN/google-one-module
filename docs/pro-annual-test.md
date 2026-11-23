@@ -4,13 +4,21 @@ Tài liệu chi tiết cho bộ module **G1 ACQ (`g1-acq-v7`)** và **G1 SKU Sca
 
 ## 1. Link cài đặt & Nguyên tắc bật/tắt
 
-* **G1 ACQ** (ghi đè 3 mức):
+* **Shadowrocket — G1 ACQ** (ghi đè 3 mức):
   ```text
-  https://raw.githubusercontent.com/DrStrangeVN/g1-acq-vi/main/g1-acq-v7.sgmodule
+  https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq-v7.sgmodule
   ```
-* **G1 SKU Scan** (quét thụ động):
+* **Shadowrocket — G1 SKU Scan** (quét thụ động):
   ```text
-  https://raw.githubusercontent.com/DrStrangeVN/g1-acq-vi/main/g1-sku-scan.sgmodule
+  https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-scan.sgmodule
+  ```
+* **Loon — G1 ACQ** (ghi đè 3 mức):
+  ```text
+  https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-acq-v7.plugin
+  ```
+* **Loon — G1 SKU Scan** (quét thụ động):
+  ```text
+  https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-sku-scan.plugin
   ```
 
 Không bật cùng lúc cả hai module. Chuyển giai đoạn nào thì bật đúng module đó, tắt module còn lại và **ngắt/kết nối lại VPN**.

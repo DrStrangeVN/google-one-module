@@ -309,7 +309,7 @@ test("the new installer replaces the old entry and all modules share one fixed r
     if (file === "g1-acq-v7.sgmodule") assert.match(module, /^#!name=G1 ACQ$/m);
     for (const script of scripts) {
       const url = script.match(/script-path=([^,\s]+)/)[1];
-      assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/DrStrangeVN\/g1-acq-vi\/main\/[a-z0-9.-]+\.js$/);
+      assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/DrStrangeVN\/google-one-module\/main\/[a-z0-9.-]+\.js$/);
       const base = url.slice(0, url.lastIndexOf("/") + 1);
       if (!scriptBase) scriptBase = base;
       assert.equal(base, scriptBase);

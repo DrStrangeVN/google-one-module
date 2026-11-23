@@ -1,0 +1,15 @@
+#!name=G1 SKU Scan
+#!desc=Thu thập thụ động mã SKU từ response của one.google.com (giữ nguyên nội dung gốc); xem & xuất báo cáo nội bộ
+#!author=DrStrangeVN
+#!system=ios
+
+[Rule]
+# Chặn UDP 443 để ép HTTP/3 (QUIC) lùi về TCP cho HTTPS Decryption hoạt động.
+AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+
+[Script]
+http-response ^https:\/\/one\.google\.com\/ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-scan.js, requires-body=true, timeout=10, tag=g1-sku-scan
+http-request ^https:\/\/one\.google\.com\/g1-sku-report(?:\?.*)?$ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js, timeout=10, tag=g1-sku-report
+
+[MITM]
+hostname = one.google.com

@@ -1,24 +1,42 @@
-# g1-acq-vi
+# google-one-module
 
-Công cụ thu thập và ghi đè mã SKU gói cước Google One (iOS) dành cho **Shadowrocket** (bản tiếng Việt, clone & cập nhật link script độc lập từ `crhywun/g1-acq`).
+Công cụ thu thập và ghi đè mã SKU gói cước Google One (iOS) dành cho **Shadowrocket** và **Loon** (bản tiếng Việt, clone & cập nhật link script độc lập từ `crhywun/g1-acq`).
 
 **G1 ACQ (`g1-acq-v7`) gộp 3 mức ghi đè:** chuyển gói iOS 2TB gốc (`g1.ios.2tb.*`) → `g1.2tb.ai.annual` (gói năm), đồng thời giữ nguyên mapping ưu đãi 20TB / 30TB và logic fallback 75p độc lập. Chi tiết quy trình quét, test và kiểm tra thực tế xem tại [Hướng dẫn test gói năm Pro & quét SKU](docs/pro-annual-test.md).
 
 > Lưu ý: Chuỗi mã SKU xuất hiện trong response chỉ chứng minh trang web có mang chuỗi đó, không đồng nghĩa với việc App Store cho phép mua. Tên gói, chu kỳ, giá lần đầu và giá gia hạn phải kiểm tra trực tiếp trên bảng thanh toán App Store (StoreKit).
 
-## Link cài đặt Module (Shadowrocket)
+## Link cài đặt Module / Plugin
+
+### Shadowrocket (`.sgmodule`)
 
 **G1 ACQ: Ghi đè 3 mức & Trang báo cáo nội bộ**
 
 ```text
-https://raw.githubusercontent.com/DrStrangeVN/g1-acq-vi/main/g1-acq-v7.sgmodule
+https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq-v7.sgmodule
 ```
 
 **G1 SKU Scan: Thu thập thụ động SKU từ webview**
 
 ```text
-https://raw.githubusercontent.com/DrStrangeVN/g1-acq-vi/main/g1-sku-scan.sgmodule
+https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-scan.sgmodule
 ```
+
+### Loon (`.plugin`)
+
+**G1 ACQ: Ghi đè 3 mức & Trang báo cáo nội bộ**
+
+```text
+https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-acq-v7.plugin
+```
+
+**G1 SKU Scan: Thu thập thụ động SKU từ webview**
+
+```text
+https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-sku-scan.plugin
+```
+
+> **Lưu ý khi repo ở chế độ Private:** Link `raw.githubusercontent.com` từ repo riêng tư yêu cầu `?token=...` hoặc tải file trực tiếp về máy/iCloud để import vào Shadowrocket/Loon (nếu dùng URL không kèm token, app sẽ báo 404 khi tải script).
 
 * `G1 SKU Scan` đọc các chuỗi `g1.*` và `com.google.one.*` trong response của `one.google.com/`, lọc trùng và đếm số lần xuất hiện (tối đa 300 mã), giữ nguyên response gốc (`$done({})`), chỉ lưu cục bộ trên máy.
 * `g1-pro-annual-test.sgmodule` là file tương thích dùng chung `g1-acq.js`, không cần bật thêm nếu đã dùng `G1 ACQ`.
