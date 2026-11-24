@@ -33,12 +33,16 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
 
-* **Nâng cấp so với bản chính:**
+* **Nâng cấp so với bản chính (v1.1 — tích hợp ý tưởng từ `crhywun/g1-acq`, `shelken/proxy`, `xinnyu/g1-acq-surge`, `kawhaiyoung/rule` & `tameruict/gg-ultra-1M`):**
+  * **3 Profile chuyển nhanh trên web báo cáo:**
+    1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p` fallback.
+    2. `ultra-1m-free` (từ `gg-ultra-1M`): Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq` (Ultra 30TB dùng thử miễn phí 1 tháng).
+    3. `ultra-free-probe` (từ `gg-ultra-1M` v3.1): Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft.acq` / `_eft` dài hạn (1/2/3/6/12 tháng).
+  * **Bảng nổi `<details>` ngay trên trang Google App** (`overlayPanel`): Xem nhanh các cặp SKU vừa bị sửa ngay trong WebView không cần chuyển app.
   * **Chặn QUIC theo domain**: Chỉ chặn `UDP 443` trên `one.google.com` & `subscriptionsmobile-pa.googleapis.com` (không làm chậm HTTP/3 của app khác).
-  * **Ép response thuần**: Tự xóa `Accept-Encoding`, `If-None-Match`, `If-Modified-Since` ở request và `Alt-Svc` ở response + tự giải mã `Uint8Array` bằng `TextDecoder`.
-  * **Hỗ trợ Native Protobuf (app Google One riêng)**: Bắt và giải mã API `GetDynamicStorefrontInfo`, có thể chọn *Chỉ quét* (mặc định) hoặc *Quét + Ghi đè Protobuf* ngay trên trang báo cáo.
-  * **Strict Catalog**: Tùy chọn chỉ ghi đè khi tài khoản có sẵn mã `.acq` / `_90p` / `_75p` trong response.
-  * **Highlight PROMO & gán 1 chạm**: Đẩy các mã khuyến mãi lên đầu bảng kèm nút *Dùng làm đích 2TB*.
+  * **Ép response thuần & mở rộng URL**: Tự xóa `Accept-Encoding`, `If-None-Match`, `If-Modified-Since`, `Alt-Svc` + giải mã `Uint8Array`; phạm vi mở rộng hỗ trợ `/ai?`, `/upsell`, `/plans`, `/storage`, `batchexecute`.
+  * **Hỗ trợ Native Protobuf (app Google One riêng)**: Bắt và giải mã API `GetDynamicStorefrontInfo` (*Chỉ quét* hoặc *Quét + Ghi đè Protobuf*).
+  * **Strict Catalog & Highlight PROMO**: Tùy chọn chỉ ghi đè khi tài khoản có sẵn mã khuyến mãi + đẩy mã PROMO lên đầu bảng với nút gán 1 chạm.
 * **Link cài đặt `ALL IN ONE_V1`:**
   * **Shadowrocket (`.sgmodule`):**
     ```text

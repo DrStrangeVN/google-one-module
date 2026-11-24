@@ -794,7 +794,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v1.0");
+  assert.equal(scan.version, "g1-aio-v1.1");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -827,14 +827,21 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.equal(get(verifyStorage, SCAN_KEY).skus[0].id, TWENTY_TARGET);
 });
 
-test("ALL IN ONE_V1 report saves strictCatalog & nativeMode, highlights PROMO SKUs, and keeps strict CSP", () => {
+test("ALL IN ONE_V1 report saves profile, overlayPanel, strictCatalog & nativeMode, highlights PROMO SKUs, and keeps strict CSP", () => {
   const storage = new Map();
   run("g1-sku-report-v1.js", {
-    url: REPORT + "?action=save&mode=auto&target2tb=" + TARGET + "&scope=extended&native=rewrite&strict=1&e2tb=1&e20tb=1&e30tb=1&notify=1",
+    url: REPORT + "?action=profile&profile=ultra-1m-free",
+    storage
+  });
+  assert.equal(get(storage, CONFIG_KEY).profile, "ultra-1m-free");
+
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=save&profile=promo-90p&mode=auto&target2tb=" + TARGET + "&scope=extended&native=rewrite&strict=1&overlay=1&e2tb=1&e20tb=1&e30tb=1&notify=1",
     storage
   });
   assert.deepEqual(get(storage, CONFIG_KEY), {
     schemaVersion: 1,
+    profile: "promo-90p",
     mode: "auto",
     target2tb: TARGET,
     enable2tb: true,
@@ -843,16 +850,18 @@ test("ALL IN ONE_V1 report saves strictCatalog & nativeMode, highlights PROMO SK
     rewriteScope: "extended",
     nativeMode: "rewrite",
     strictCatalog: true,
+    overlayPanel: true,
     notify: true
   });
 
-  // Note: e30tb was omitted in query -> false
+  // Note: e30tb & overlay omitted in query -> false
   run("g1-sku-report-v1.js", {
-    url: REPORT + "?action=save&mode=auto&target2tb=" + TARGET + "&scope=ai&native=scan&e2tb=1&e20tb=1",
+    url: REPORT + "?action=save&profile=promo-90p&mode=auto&target2tb=" + TARGET + "&scope=ai&native=scan&e2tb=1&e20tb=1",
     storage
   });
   assert.equal(get(storage, CONFIG_KEY).enable30tb, false);
   assert.equal(get(storage, CONFIG_KEY).strictCatalog, false);
+  assert.equal(get(storage, CONFIG_KEY).overlayPanel, false);
   assert.equal(get(storage, CONFIG_KEY).nativeMode, "scan");
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify(["g1.ios.2tb.m", TWENTY_TARGET]), storage });
@@ -863,6 +872,63 @@ test("ALL IN ONE_V1 report saves strictCatalog & nativeMode, highlights PROMO SK
   assert(!/<(?:script|img|iframe)\b/i.test(html));
   const skuSection = html.slice(html.indexOf("Danh sách SKU thu thập được"));
   assert(skuSection.indexOf(TWENTY_TARGET) < skuSection.indexOf("g1.ios.2tb.m"));
+});
+
+test("ALL IN ONE_V1 supports ultra-1m-free and ultra-free-probe profiles, extended upsell/storage routes, and HTML overlay injection", () => {
+  const ultra1mStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "ultra-1m-free", mode: "auto", rewriteScope: "extended", overlayPanel: true, notify: false
+  })]]);
+  const upsellRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/upsell?x=1",
+    body: JSON.stringify(["g1.ios.30gb.m", "g1.ios.helium.a", TWENTY]),
+    storage: ultra1mStorage
+  });
+  assert.deepEqual(JSON.parse(upsellRes.payload.body), [
+    "g1.ai.ultra.1month_eft.acq",
+    "g1.ai.ultra.1month_eft.acq",
+    "g1.ai.ultra.1month_eft.acq"
+  ]);
+
+  const probeStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "ultra-free-probe", mode: "auto", rewriteScope: "extended", overlayPanel: true, notify: false
+  })]]);
+  const probeInputs = [
+    "g1.ios.30gb.m", "g1.ios.100gb.m", "g1.ios.helium.m", "g1.ios.2tb.m",
+    "g1.ios.2tb.ai.m", "g1.ios.20tb.m.v2", "g1.ios.2tb.ai.a", "g1.ios.30gb.a",
+    "g1.ios.100gb.a", "g1.ios.helium.a", "g1.ios.2tb.a"
+  ];
+  const probeExpected = [
+    "g1.ai.ultra.3months_eft.acq", "g1.ai.ultra.6months_eft.acq", "g1.ai.ultra.12months_eft.acq", "g1.ai.ultra.2months_eft.acq",
+    "g1.20tb.3months_eft.acq", "g1.20tb.12months_eft.acq", "g1.2tb.ai.12months_eft.acq", "g1.20tb.1month_eft.acq",
+    "g1.20tb.6months_eft.acq", "g1.ai.ultra.3months_eft", "g1.ai.ultra.12months_eft"
+  ];
+  const storageRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/storage",
+    body: JSON.stringify(probeInputs),
+    storage: probeStorage
+  });
+  assert.deepEqual(JSON.parse(storageRes.payload.body), probeExpected);
+
+  // Verify overlayPanel injects pure HTML <details> on HTML pages and leaves JSON with "</body>" untouched
+  const htmlRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?x=1",
+    body: "<html><body><button data-sku=\"g1.ios.2tb.ai.a\">Sub</button></body></html>",
+    storage: probeStorage
+  });
+  assert(htmlRes.payload.body.includes("g1.2tb.ai.12months_eft.acq"));
+  assert(htmlRes.payload.body.includes("<details "));
+  assert(htmlRes.payload.body.includes("ALL IN ONE_V1 (ultra-free-probe)"));
+  assert(!/<script\b/i.test(htmlRes.payload.body));
+
+  const jsonWithBodyTag = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?x=1",
+    body: JSON.stringify({ sku: "g1.ios.2tb.ai.a", snippet: "</body>" }),
+    storage: probeStorage
+  });
+  assert.deepEqual(JSON.parse(jsonWithBodyTag.payload.body), {
+    sku: "g1.2tb.ai.12months_eft.acq",
+    snippet: "</body>"
+  });
 });
 
 test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC rules, headers and 3 script lines", () => {

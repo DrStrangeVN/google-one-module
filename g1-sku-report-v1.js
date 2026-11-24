@@ -1,9 +1,9 @@
-/* Local-only Vietnamese report & Control Panel for ALL IN ONE_V1 (Shadowrocket / Loon / Surge). */
+/* Local-only Vietnamese report & Control Panel for ALL IN ONE_V1.1 (Shadowrocket / Loon / Surge). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v1.0";
+  var VERSION = "aio-v1.1";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -15,9 +15,9 @@
   var VALID_SKU = /^g1\.[A-Za-z0-9._-]{1,160}$/;
   var PRESETS = [
     { id: "g1.2tb.ai.12months_ip_90p", label: "12 tháng 90p (v7.5)" },
-    { id: "g1.2tb.ai.annual", label: "2TB Năm (g1.2tb.ai.annual)" },
-    { id: "g1.2tb.ai.annual_ip_90p.acq", label: "Năm 90p ACQ" },
-    { id: "g1.2tb.ai.3months_ip_90p.acq", label: "3 tháng 90p ACQ" }
+    { id: "g1.ai.ultra.1month_eft.acq", label: "Ultra 1 tháng Free (eft)" },
+    { id: "g1.2tb.ai.12months_eft.acq", label: "Pro 12 tháng Free (eft)" },
+    { id: "g1.2tb.ai.annual", label: "2TB Năm (g1.2tb.ai.annual)" }
   ];
   var url = typeof $request === "object" && $request ? $request.url : "";
   if (typeof url !== "string" || !/^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?|$)/.test(url)) {
@@ -69,6 +69,7 @@
   function loadConfig() {
     var defaults = {
       schemaVersion: 1,
+      profile: "promo-90p",
       mode: "auto",
       target2tb: DEFAULT_TARGET,
       enable2tb: true,
@@ -77,9 +78,13 @@
       rewriteScope: "ai",
       nativeMode: "scan",
       strictCatalog: false,
+      overlayPanel: true,
       notify: true
     };
     var saved = load(CONFIG_KEY);
+    if (saved.profile === "promo-90p" || saved.profile === "ultra-1m-free" || saved.profile === "ultra-free-probe") {
+      defaults.profile = saved.profile;
+    }
     if (saved.mode === "auto" || saved.mode === "scan-only" || saved.mode === "rewrite-only") {
       defaults.mode = saved.mode;
     }
@@ -94,6 +99,7 @@
       defaults.nativeMode = saved.nativeMode;
     }
     if (saved.strictCatalog === true) defaults.strictCatalog = true;
+    if (saved.overlayPanel === false) defaults.overlayPanel = false;
     if (saved.notify === false) defaults.notify = false;
     return defaults;
   }
@@ -148,6 +154,23 @@
     if (!query.action) return;
 
     var cfg = loadConfig();
+    if (query.action === "profile") {
+      if (query.profile === "promo-90p" || query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe") {
+        cfg.profile = query.profile;
+        if (saveConfig(cfg)) {
+          var pNames = {
+            "promo-90p": "Promo 90p / 75p (v7.5)",
+            "ultra-1m-free": "Ultra 30TB 1 tháng Free (gg-ultra-1M)",
+            "ultra-free-probe": "Dò 11 nút Free dài hạn (2/3/6/12T)"
+          };
+          actionMessage = "Đã chuyển Profile mapping sang: " + pNames[cfg.profile] + ".";
+        }
+      } else {
+        errorMessage = "Profile không hợp lệ.";
+      }
+      return;
+    }
+
     if (query.action === "mode") {
       if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
         cfg.mode = query.mode;
@@ -185,6 +208,9 @@
         return;
       }
       cfg.target2tb = candidate;
+      if (query.profile === "promo-90p" || query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe") {
+        cfg.profile = query.profile;
+      }
       if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
         cfg.mode = query.mode;
       }
@@ -193,6 +219,7 @@
         cfg.nativeMode = query.native;
       }
       cfg.strictCatalog = query.strict === "1";
+      cfg.overlayPanel = query.overlay === "1";
       cfg.enable2tb = query.e2tb === "1";
       cfg.enable20tb = query.e20tb === "1";
       cfg.enable30tb = query.e30tb === "1";
@@ -214,13 +241,13 @@
     return typeof value === "string" && VALID_SKU.test(value) ? value : "";
   }
   function isPromoSku(id) {
-    return /(?:acq|_90p|_75p|12months|annual|3months)/i.test(id);
+    return /(?:acq|_90p|_75p|_eft|12months|annual|3months|6months|2months|1month)/i.test(id);
   }
   function rows(value, withTime, defaultTarget) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, 300).filter(function (row) {
       return row && typeof row.id === "string" &&
-        /^(?:g\d+\.(?:ios|ai)\.|g1\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/.test(row.id);
+        /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/.test(row.id);
     }).map(function (row) {
       var out = { id: row.id, count: count(row.count) };
       if (withTime) {
@@ -247,7 +274,7 @@
     "limit-reached": "Có SKU mới nhưng đã đạt giới hạn 300 mã",
     "non-text": "Response không phải văn bản / nhị phân hợp lệ"
   };
-  var scanPaths = ["/", "/ai", "/plans", "/_/…/data/batchexecute", NATIVE_PATH, OTHER_PATH];
+  var scanPaths = ["/", "/ai", "/plans", "/upsell", "/storage", "/_/…/data/batchexecute", NATIVE_PATH, OTHER_PATH];
   function recent(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(-10).filter(function (event) {
@@ -292,7 +319,7 @@
       return total + (row.id.indexOf("g1.ios.2tb.") === 0 ? row.count : 0);
     }, 0);
   var storedOrigin = text(testRaw.targetOrigin, 32);
-  var targetOrigin = recordedTarget && /^(?:user-specified|pattern-derived|legacy|custom)$/.test(storedOrigin) ?
+  var targetOrigin = recordedTarget && /^(?:user-specified|pattern-derived|legacy|custom|profile:.+)$/.test(storedOrigin) ?
     storedOrigin : recordedTarget === DEFAULT_TARGET ? "user-specified" :
       recordedTarget === LEGACY_TARGET ? "legacy" : recordedTarget ? "custom" : "";
 
@@ -317,7 +344,7 @@
       version: text(testRaw.version, 32),
       updatedAt: text(testRaw.updatedAt, 32),
       sourcePrefix: "g1.ios.2tb.",
-      target: recordedTarget,
+      target: recordedTarget || text(testRaw.target, 64),
       targetOrigin: targetOrigin,
       status: text(testRaw.status, 32),
       hitCount: count(testRaw.hitCount),
@@ -380,12 +407,22 @@
     report.scan.recentResponses[report.scan.recentResponses.length - 1] : null;
   var statuses = {
     "rewritten": "Đã thực hiện ghi đè chuỗi / Protobuf",
-    "no-match": "Response lần này không khớp SKU nguồn nào trong 3 mức",
+    "no-match": "Response lần này không khớp SKU nguồn nào",
     "non-text": "Response lần này không có nội dung văn bản để xử lý",
-    "skipped-strict-catalog": "Đã bỏ qua (Strict Catalog bật, tài khoản chưa có mã .acq / 90p / 75p)"
+    "skipped-strict-catalog": "Đã bỏ qua (Strict Catalog bật, tài khoản chưa có mã .acq / 90p / 75p / eft)"
   };
   var status = Object.prototype.hasOwnProperty.call(statuses, report.test.status) ?
     statuses[report.test.status] : "Chưa có bản ghi chạy test";
+
+  var profileOptions = [
+    { id: "promo-90p", label: "Promo 90p / 75p (v7.5)" },
+    { id: "ultra-1m-free", label: "Ultra 30TB · 1M Free (Mọi nút)" },
+    { id: "ultra-free-probe", label: "Dò 11 nút Free (2/3/6/12T)" }
+  ];
+  var profileButtons = profileOptions.map(function (item) {
+    var active = currentConfig.profile === item.id ? " active" : "";
+    return "<a class=\"pill" + active + "\" href=\"" + ROOT + "?action=profile&profile=" + item.id + "\">" + item.label + "</a>";
+  }).join("");
 
   var modeOptions = [
     { id: "auto", label: "Tự động (Quét + Ghi đè)" },
@@ -410,25 +447,30 @@
     "<h1>ALL IN ONE_V1 · Báo cáo Google One SKU</h1>",
     "<p class=badge>Script nội bộ đang hoạt động · " + VERSION + "</p>",
     "<nav class=actions aria-label=\"Thao tác báo cáo\"><form method=get action=\"" + ROOT + "\"><button type=submit name=format value=json>Xuất JSON</button></form><a href=\"" + ROOT + "\">Làm mới báo cáo</a></nav>",
-    "<p class=note>Hỗ trợ cả WebView (<code>one.google.com</code>) &amp; App Google One riêng (Native Protobuf).</p>",
+    "<p class=note>Tích hợp 3 Profile (Promo 90p · Ultra 1M Free · Dò 11 nút EFT) cho cả WebView &amp; App Google One riêng (Native Protobuf).</p>",
     actionMessage ? "<p class=\"alert alert-ok\">" + escape(actionMessage) + "</p>" : "",
     errorMessage ? "<p class=\"alert alert-err\">" + escape(errorMessage) + "</p>" : "",
     storageAvailable ? "" : "<p class=\"alert alert-err\">Giao diện lưu trữ cục bộ chưa sẵn sàng; chưa thể đọc hoặc ghi dữ liệu.</p>",
 
     "<section><h2>Bảng điều khiển ALL IN ONE_V1</h2>",
     "<p class=note>Thay đổi áp dụng ngay lập tức cho <strong>G1 ALL IN ONE_V1</strong> mà không cần tắt/bật VPN.</p>",
-    "<h3>Chế độ hoạt động nhanh</h3><div class=pill-row>" + modeButtons + "</div>",
-    "<h3>Chọn nhanh mã đích 2TB</h3><div class=pill-row>" + presetButtons + "</div>",
+    "<h3>1. Chọn nhanh Profile mapping</h3><div class=pill-row>" + profileButtons + "</div>",
+    "<h3>2. Chế độ hoạt động nhanh</h3><div class=pill-row>" + modeButtons + "</div>",
+    "<h3>3. Chọn nhanh mã đích 2TB (khi dùng Profile Promo 90p)</h3><div class=pill-row>" + presetButtons + "</div>",
     "<form method=get action=\"" + ROOT + "\"><input type=hidden name=action value=save>",
     "<div class=grid>",
-    "<div class=field><label for=target2tb>Mã SKU đích 2TB tùy chỉnh</label><input id=target2tb type=text name=target2tb value=\"" + escape(currentConfig.target2tb) + "\" placeholder=\"g1.2tb.ai.12months_ip_90p\"></div>",
+    "<div class=field><label for=profile>Profile mapping</label><select id=profile name=profile>" +
+      profileOptions.map(function (item) {
+        return "<option value=\"" + item.id + "\"" + (currentConfig.profile === item.id ? " selected" : "") + ">" + item.label + "</option>";
+      }).join("") + "</select></div>",
+    "<div class=field><label for=target2tb>Mã SKU đích 2TB tùy chỉnh (Profile Promo 90p)</label><input id=target2tb type=text name=target2tb value=\"" + escape(currentConfig.target2tb) + "\" placeholder=\"g1.2tb.ai.12months_ip_90p\"></div>",
     "<div class=field><label for=mode>Chế độ</label><select id=mode name=mode>" +
       modeOptions.map(function (item) {
         return "<option value=\"" + item.id + "\"" + (currentConfig.mode === item.id ? " selected" : "") + ">" + item.label + "</option>";
       }).join("") + "</select></div>",
     "<div class=field><label for=scope>Phạm vi URL Web</label><select id=scope name=scope>" +
       "<option value=ai" + (currentConfig.rewriteScope === "ai" ? " selected" : "") + ">Chỉ /ai? (Chuẩn & an toàn)</option>" +
-      "<option value=extended" + (currentConfig.rewriteScope === "extended" ? " selected" : "") + ">Mở rộng (/ai?, /plans, batchexecute)</option>" +
+      "<option value=extended" + (currentConfig.rewriteScope === "extended" ? " selected" : "") + ">Mở rộng (/ai?, /upsell, /plans, /storage, batchexecute)</option>" +
       "</select></div>",
     "<div class=field><label for=native>App Google One riêng (Native Protobuf)</label><select id=native name=native>" +
       "<option value=scan" + (currentConfig.nativeMode === "scan" ? " selected" : "") + ">Chỉ quét SKU (An toàn)</option>" +
@@ -440,7 +482,8 @@
     "<label><input type=checkbox name=e2tb value=1" + (currentConfig.enable2tb ? " checked" : "") + "> Bật 2TB</label>",
     "<label><input type=checkbox name=e20tb value=1" + (currentConfig.enable20tb ? " checked" : "") + "> Bật 20TB</label>",
     "<label><input type=checkbox name=e30tb value=1" + (currentConfig.enable30tb ? " checked" : "") + "> Bật 30TB</label>",
-    "<label><input type=checkbox name=strict value=1" + (currentConfig.strictCatalog ? " checked" : "") + "> Strict Catalog (Chỉ sửa khi có .acq)</label>",
+    "<label><input type=checkbox name=strict value=1" + (currentConfig.strictCatalog ? " checked" : "") + "> Strict Catalog (Chỉ sửa khi có promo)</label>",
+    "<label><input type=checkbox name=overlay value=1" + (currentConfig.overlayPanel ? " checked" : "") + "> Bảng nổi trên trang Google</label>",
     "<label><input type=checkbox name=notify value=1" + (currentConfig.notify ? " checked" : "") + "> Thông báo iOS</label>",
     "</div>",
     "<button class=btn-primary type=submit>Lưu cấu hình</button></form></section>",
@@ -454,11 +497,11 @@
       latestScan.candidateCount + " mã khác nhau, thêm mới " + latestScan.addedCount + " mã, bỏ qua do đầy " + latestScan.omittedCount + " mã.</p>" : "",
     "<h3>10 response gần nhất</h3>", recentTable(report.scan.recentResponses), "</section>",
 
-    "<section><h2>Lần chạy mapping 3 mức gần nhất</h2>",
-    "<p>Mã đích 2TB đang cấu hình: <code>" + escape(CONFIGURED_TARGET) + "</code></p>",
+    "<section><h2>Lần chạy mapping gần nhất</h2>",
+    "<p>Profile đang chọn: <code>" + escape(currentConfig.profile) + "</code> | Đích 2TB: <code>" + escape(CONFIGURED_TARGET) + "</code></p>",
     "<p>Phiên bản script: " + escape(report.test.version || "Chưa có") + "<br>Trạng thái: " + escape(status) +
       "; Tổng số lần thay thế: " + report.test.hitCount + "; Trong đó 2TB: " + report.test.annualHitCount + "</p>",
-    "<p>Mã 2TB ghi nhận: <code>" + escape(report.test.target || "Chưa ghi nhận") +
+    "<p>Đích ghi nhận: <code>" + escape(report.test.target || "Chưa ghi nhận") +
       "</code> | Thời gian (UTC): " + escape(report.test.updatedAt || "Chưa có") + "</p>",
     table(report.test.matchedFrom, false), "</section>",
 

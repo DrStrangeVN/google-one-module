@@ -1,10 +1,11 @@
-/* Google One ALL IN ONE_V1: Web + Native Protobuf scanner, Strict Catalog gate, configurable 3-tier rewriter & iOS notifier. */
+/* Google One ALL IN ONE_V1.1: 3 Profiles (Promo 90p / Ultra 1M Free / 11-Button EFT Probe), Web + Native Protobuf, Strict Catalog & HTML Overlay Panel. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v1.0";
+  var VERSION = "g1-aio-v1.1";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
+  var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
   var SKU_MAP = {
     "g1.ios.20tb.m.v2": "g1.20tb.3months_ip_90p.acq",
     "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.3months_ip_90p.acq"
@@ -12,6 +13,19 @@
   var FALLBACK = {
     "g1.20tb.3months_ip_90p.acq": "g1.20tb.3months_ip_75p.acq",
     "g1.ai.ultra.3months_ip_90p.acq": "g1.ai.ultra.3months_ip_75p.acq"
+  };
+  var PROBE_MAP = {
+    "g1.ios.30gb.m": "g1.ai.ultra.3months_eft.acq",
+    "g1.ios.100gb.m": "g1.ai.ultra.6months_eft.acq",
+    "g1.ios.helium.m": "g1.ai.ultra.12months_eft.acq",
+    "g1.ios.2tb.m": "g1.ai.ultra.2months_eft.acq",
+    "g1.ios.2tb.ai.m": "g1.20tb.3months_eft.acq",
+    "g1.ios.20tb.m.v2": "g1.20tb.12months_eft.acq",
+    "g1.ios.2tb.ai.a": "g1.2tb.ai.12months_eft.acq",
+    "g1.ios.30gb.a": "g1.20tb.1month_eft.acq",
+    "g1.ios.100gb.a": "g1.20tb.6months_eft.acq",
+    "g1.ios.helium.a": "g1.ai.ultra.3months_eft",
+    "g1.ios.2tb.a": "g1.ai.ultra.12months_eft"
   };
   var CONFIG_KEY = "g1.config.v1";
   var TEST_KEY = "g1.pro.annual.test.v1";
@@ -77,7 +91,7 @@
     }
 
     var rewritePattern = cfg.rewriteScope === "extended"
-      ? /^https:\/\/one\.google\.com\/(?:ai\?|plans(?:[/?]|$)|_\/[^?#]+\/data\/batchexecute)/
+      ? /^https:\/\/one\.google\.com\/(?:ai\?|upsell(?:[/?]|$)|plans(?:[/?]|$)|storage(?:[/?]|$)|_\/[^?#]+\/data\/batchexecute)/
       : /^https:\/\/one\.google\.com\/ai\?/;
 
     if (!rewritePattern.test(url)) {
@@ -93,7 +107,7 @@
     }
 
     if (typeof body === "string" && cfg.strictCatalog) {
-      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,60}(?:acq|_90p|_75p)/g) || [];
+      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,60}(?:acq|_90p|_75p|_eft)/g) || [];
       if (!promoCatalog.length) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
         console.log("[g1-aio-v1] strictCatalog=on, no promo SKUs in catalog -> passthrough");
@@ -123,6 +137,10 @@
           return before + resolved.to;
         }
       );
+
+      if (hits > 0 && cfg.overlayPanel) {
+        out = injectOverlayPanel(out, cfg, mappings, hits);
+      }
     }
 
     saveTestRecord(cfg, mappings, hits, annualHits, typeof body !== "string" ? "non-text" : hits ? "rewritten" : "no-match");
@@ -192,7 +210,7 @@
 
     if (cfg.strictCatalog) {
       var hasPromo = extracted.some(function (id) {
-        return /(?:acq|_90p|_75p)$/.test(id);
+        return /(?:acq|_90p|_75p|_eft)$/.test(id);
       });
       if (!hasPromo) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
@@ -233,6 +251,22 @@
 
   function resolveTarget(id, observedList, cfg) {
     var is2tb = id.indexOf(SOURCE_PREFIX) === 0 && id.length > SOURCE_PREFIX.length;
+
+    if (cfg.profile === "ultra-1m-free") {
+      if (id.indexOf("g1.ios.") === 0 && id.length > 7) {
+        return { to: ULTRA_1M_TARGET, fallback: false, is2tb: is2tb };
+      }
+      return null;
+    }
+
+    if (cfg.profile === "ultra-free-probe") {
+      if (Object.prototype.hasOwnProperty.call(PROBE_MAP, id)) {
+        return { to: PROBE_MAP[id], fallback: false, is2tb: is2tb };
+      }
+      return null;
+    }
+
+    // Default profile: "promo-90p"
     var to;
     var fallback = false;
     if (is2tb) {
@@ -258,17 +292,53 @@
     return { to: to, fallback: fallback, is2tb: is2tb };
   }
 
+  function injectOverlayPanel(html, cfg, mappings, hits) {
+    var lower = html.toLowerCase();
+    var closeIdx = lower.lastIndexOf("</body>");
+    if (closeIdx === -1) return html;
+    // Skip JSON-like payloads that merely happen to embed a string containing </body>.
+    var trimmed = html.replace(/^\s+/, "");
+    if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[" || trimmed.indexOf(")]}'") === 0) {
+      return html;
+    }
+    var keys = Object.keys(mappings).sort();
+    var rows = keys.map(function (id) {
+      var m = mappings[id];
+      return '<div style="margin:2px 0;"><b style="color:#38bdf8;">' + escHtml(m.id) +
+        '</b> → <span style="color:#4ade80;">' + escHtml(m.to) + '</span> (x' + m.count +
+        (m.fallback ? ' · 75p' : '') + ')</div>';
+    });
+    var panel =
+      '<details style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+      'background:#0f172a;color:#f8fafc;font-family:-apple-system,monospace;font-size:12px;' +
+      'line-height:1.4;padding:8px 12px;border-bottom:2px solid #4ade80;' +
+      'max-height:55vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.5);">' +
+      '<summary style="font-weight:700;font-size:12px;color:#4ade80;cursor:pointer;">' +
+      escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · Đã ghi đè ' + keys.length + ' mã / ' + hits + ' vị trí — chạm để xem') +
+      '</summary><div style="margin-top:6px;">' + rows.join("") +
+      '<div style="margin-top:6px;"><a href="https://one.google.com/g1-sku-report" style="color:#93c5fd;">Mở Bảng điều khiển & Báo cáo</a></div>' +
+      '</div></details>';
+    return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
   function saveTestRecord(cfg, mappings, hits, annualHits, status) {
     var sources = Object.keys(mappings).sort().map(function (id) {
       return mappings[id];
     });
+    var effectiveTarget = cfg.profile === "ultra-1m-free" ? ULTRA_1M_TARGET :
+      cfg.profile === "ultra-free-probe" ? "probe-11-eft" : cfg.target2tb;
     var record = {
       schemaVersion: 1,
       version: VERSION,
       updatedAt: new Date().toISOString(),
       sourcePrefix: SOURCE_PREFIX,
-      target: cfg.target2tb,
-      targetOrigin: cfg.target2tb === DEFAULT_TARGET ? "user-specified" : "custom",
+      target: effectiveTarget,
+      targetOrigin: cfg.profile !== "promo-90p" ? "profile:" + cfg.profile :
+        cfg.target2tb === DEFAULT_TARGET ? "user-specified" : "custom",
       hitCount: hits,
       annualHitCount: annualHits,
       matchedFrom: sources,
@@ -286,8 +356,9 @@
   }
 
   function logRewrite(cfg, channel, mappings, hits, annualHits) {
-    console.log("[g1-aio-v1] " + VERSION + " channel=" + channel + " mode=" + cfg.mode +
-      " strict=" + (cfg.strictCatalog ? "1" : "0") + " hits=" + hits + " annualHits=" + annualHits);
+    console.log("[g1-aio-v1] " + VERSION + " channel=" + channel + " profile=" + cfg.profile +
+      " mode=" + cfg.mode + " strict=" + (cfg.strictCatalog ? "1" : "0") +
+      " hits=" + hits + " annualHits=" + annualHits);
     Object.keys(mappings).sort().forEach(function (id) {
       var source = mappings[id];
       console.log("[g1-aio-v1] " + source.id + " -> " + source.to + " x" + source.count +
@@ -303,7 +374,7 @@
         return source.id + " -> " + source.to + " (x" + source.count + ")";
       }).join("; ");
       notifyUser(
-        "G1 ALL IN ONE_V1 (" + channelLabel + ")",
+        "G1 ALL IN ONE_V1 (" + channelLabel + " · " + cfg.profile + ")",
         "Đã ghi đè " + hits + " SKU (2TB: " + annualHits + ")",
         summary
       );
@@ -398,7 +469,7 @@
 
     var byId = Object.create(null);
     var ids = [];
-    var validId = /^(?:g\d+\.(?:ios|ai)\.|g1\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
+    var validId = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
     var oldRows = Array.isArray(saved.skus) ? saved.skus : [];
     oldRows.slice(0, SCAN_LIMIT).forEach(function (row) {
       if (!row || typeof row.id !== "string" || !validId.test(row.id) || byId[row.id]) return;
@@ -770,6 +841,7 @@
   function loadConfig() {
     var defaults = {
       schemaVersion: 1,
+      profile: "promo-90p",
       mode: "auto",
       target2tb: DEFAULT_TARGET,
       enable2tb: true,
@@ -778,6 +850,7 @@
       rewriteScope: "ai",
       nativeMode: "scan",
       strictCatalog: false,
+      overlayPanel: true,
       notify: true
     };
     try {
@@ -788,6 +861,9 @@
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
+      if (parsed.profile === "promo-90p" || parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe") {
+        defaults.profile = parsed.profile;
+      }
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
         defaults.mode = parsed.mode;
       }
@@ -802,6 +878,7 @@
         defaults.nativeMode = parsed.nativeMode;
       }
       if (parsed.strictCatalog === true) defaults.strictCatalog = true;
+      if (parsed.overlayPanel === false) defaults.overlayPanel = false;
       if (parsed.notify === false) defaults.notify = false;
     } catch (error) {
       return defaults;
@@ -822,7 +899,7 @@
   function safeRoute(requestUrl) {
     var path = requestUrl.replace(/^https:\/\/one\.google\.com/, "").split(/[?#]/)[0];
     path = path.replace(/\/+$/, "") || "/";
-    if (path === "/" || path === "/ai" || path === "/plans") return path;
+    if (path === "/" || path === "/ai" || path === "/plans" || path === "/upsell" || path === "/storage") return path;
     if (/^\/_\/[^?#]+\/data\/batchexecute$/.test(path)) return "/_/…/data/batchexecute";
     return OTHER_PATH;
   }
@@ -839,7 +916,7 @@
     if (typeof row.at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(row.at) ||
         !isFinite(Date.parse(row.at)) || new Date(row.at).toISOString() !== row.at) return null;
     var path = row.path === LEGACY_OTHER_PATH ? OTHER_PATH : row.path;
-    if (path !== "/" && path !== "/ai" && path !== "/plans" &&
+    if (path !== "/" && path !== "/ai" && path !== "/plans" && path !== "/upsell" && path !== "/storage" &&
         path !== "/_/…/data/batchexecute" && path !== OTHER_PATH && path !== NATIVE_PATH) return null;
     if (row.bodyType !== "text" && row.bodyType !== "non-text") return null;
 
