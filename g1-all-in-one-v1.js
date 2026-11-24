@@ -1,0 +1,868 @@
+/* Google One ALL IN ONE_V1: Web + Native Protobuf scanner, Strict Catalog gate, configurable 3-tier rewriter & iOS notifier. */
+"use strict";
+
+(function () {
+  var VERSION = "g1-aio-v1.0";
+  var SOURCE_PREFIX = "g1.ios.2tb.";
+  var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
+  var SKU_MAP = {
+    "g1.ios.20tb.m.v2": "g1.20tb.3months_ip_90p.acq",
+    "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.3months_ip_90p.acq"
+  };
+  var FALLBACK = {
+    "g1.20tb.3months_ip_90p.acq": "g1.20tb.3months_ip_75p.acq",
+    "g1.ai.ultra.3months_ip_90p.acq": "g1.ai.ultra.3months_ip_75p.acq"
+  };
+  var CONFIG_KEY = "g1.config.v1";
+  var TEST_KEY = "g1.pro.annual.test.v1";
+  var SCAN_KEY = "g1.sku.scan.v1";
+  var SCAN_LIMIT = 300;
+  var RECENT_LIMIT = 10;
+  var MAX_EVENT_COUNT = 9007199254740991;
+  var MAX_PROTO_BODY = 2 * 1024 * 1024;
+  var MAX_PROTO_FIELDS = 50000;
+  var MAX_PROTO_DEPTH = 48;
+  var OTHER_PATH = "[Đường dẫn one.google.com khác]";
+  var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
+  var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
+  var url = typeof $request === "object" && $request ? $request.url : "";
+
+  if (typeof url !== "string") {
+    $done({});
+    return;
+  }
+
+  var isWeb = /^https:\/\/one\.google\.com\//.test(url) &&
+    !/^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?|$)/.test(url);
+  var isNative = !isWeb &&
+    /^https:\/\/subscriptionsmobile-pa\.googleapis\.com(?::443)?\/(?:[^?#]*\/)?GetDynamicStorefrontInfo(?:\?|$)/.test(url);
+
+  if (!isWeb && !isNative) {
+    $done({});
+    return;
+  }
+
+  var config = loadConfig();
+  var rawBody = typeof $response === "object" && $response ? $response.body : undefined;
+
+  if (isNative) {
+    handleNative(rawBody, config);
+    return;
+  }
+
+  handleWeb(rawBody, config);
+
+  function handleWeb(responseBody, cfg) {
+    var body = decodeTextBody(responseBody);
+    var scanResult = { addedCount: 0, candidateCount: 0 };
+
+    if (cfg.mode !== "rewrite-only") {
+      try {
+        scanResult = collectFromText(body, safeRoute(url));
+      } catch (error) {
+        console.log("[g1-aio-v1] web SKU collection unavailable");
+      }
+    }
+
+    if (cfg.mode === "scan-only") {
+      if (cfg.notify && scanResult.addedCount > 0) {
+        notifyUser(
+          "G1 ALL IN ONE_V1",
+          "Phát hiện +" + scanResult.addedCount + " SKU mới (Web)",
+          "Mở one.google.com/g1-sku-report để xem"
+        );
+      }
+      $done({});
+      return;
+    }
+
+    var rewritePattern = cfg.rewriteScope === "extended"
+      ? /^https:\/\/one\.google\.com\/(?:ai\?|plans(?:[/?]|$)|_\/[^?#]+\/data\/batchexecute)/
+      : /^https:\/\/one\.google\.com\/ai\?/;
+
+    if (!rewritePattern.test(url)) {
+      if (cfg.notify && scanResult.addedCount > 0) {
+        notifyUser(
+          "G1 ALL IN ONE_V1",
+          "Phát hiện +" + scanResult.addedCount + " SKU mới (Web)",
+          "Mở one.google.com/g1-sku-report để xem"
+        );
+      }
+      $done({});
+      return;
+    }
+
+    if (typeof body === "string" && cfg.strictCatalog) {
+      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,60}(?:acq|_90p|_75p)/g) || [];
+      if (!promoCatalog.length) {
+        saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
+        console.log("[g1-aio-v1] strictCatalog=on, no promo SKUs in catalog -> passthrough");
+        $done({});
+        return;
+      }
+    }
+
+    var mappings = Object.create(null);
+    var hits = 0;
+    var annualHits = 0;
+    var out = body;
+
+    if (typeof body === "string") {
+      var observed = body.match(/g1\.[a-z0-9._]{2,60}acq/g) || [];
+      out = body.replace(
+        /(^|[^A-Za-z0-9._@%-])(g1\.[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
+        function (match, before, id) {
+          var resolved = resolveTarget(id, observed, cfg);
+          if (!resolved) return match;
+          if (!mappings[id]) {
+            mappings[id] = { id: id, to: resolved.to, count: 0, fallback: resolved.fallback };
+          }
+          mappings[id].count += 1;
+          hits += 1;
+          if (resolved.is2tb) annualHits += 1;
+          return before + resolved.to;
+        }
+      );
+    }
+
+    saveTestRecord(cfg, mappings, hits, annualHits, typeof body !== "string" ? "non-text" : hits ? "rewritten" : "no-match");
+    logRewrite(cfg, "web", mappings, hits, annualHits);
+    notifyOutcome(cfg, mappings, hits, annualHits, scanResult, "Web");
+    $done(hits ? { body: out } : {});
+  }
+
+  function handleNative(responseBody, cfg) {
+    if (cfg.nativeMode === "off") {
+      $done({});
+      return;
+    }
+
+    var bytes = toUint8Array(responseBody);
+    if (!bytes) {
+      if (cfg.mode !== "rewrite-only") {
+        try {
+          recordScan([], NATIVE_PATH, false);
+        } catch (error) {
+          console.log("[g1-aio-v1] native non-text diagnostic failed");
+        }
+      }
+      $done({});
+      return;
+    }
+
+    var contentType = getResponseContentType();
+    var isGrpc = /^application\/grpc(?:[;+\-]|$)/.test(contentType);
+    var isGrpcWeb = contentType.indexOf("grpc-web") !== -1;
+
+    if (bytes.length > MAX_PROTO_BODY || contentType.indexOf("grpc-web-text") !== -1) {
+      console.log("[g1-aio-v1] native payload skipped (size or grpc-web-text)");
+      $done({});
+      return;
+    }
+
+    var extracted = [];
+    try {
+      extracted = extractProtobufTokens(bytes, isGrpc, isGrpcWeb);
+    } catch (error) {
+      console.log("[g1-aio-v1] native protobuf inspect failed: " + (error && error.message ? error.message : "error"));
+      $done({});
+      return;
+    }
+
+    var scanResult = { addedCount: 0, candidateCount: 0 };
+    if (cfg.mode !== "rewrite-only") {
+      try {
+        scanResult = recordScan(extracted, NATIVE_PATH, true);
+      } catch (error) {
+        console.log("[g1-aio-v1] native scan save unavailable");
+      }
+    }
+
+    if (cfg.nativeMode !== "rewrite" || cfg.mode === "scan-only") {
+      if (cfg.notify && scanResult.addedCount > 0) {
+        notifyUser(
+          "G1 ALL IN ONE_V1",
+          "Phát hiện +" + scanResult.addedCount + " SKU mới (Native App)",
+          "Mở one.google.com/g1-sku-report để xem"
+        );
+      }
+      $done({});
+      return;
+    }
+
+    if (cfg.strictCatalog) {
+      var hasPromo = extracted.some(function (id) {
+        return /(?:acq|_90p|_75p)$/.test(id);
+      });
+      if (!hasPromo) {
+        saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
+        console.log("[g1-aio-v1] native strictCatalog=on, no promo SKUs -> passthrough");
+        $done({});
+        return;
+      }
+    }
+
+    var mappings = Object.create(null);
+    var hits = 0;
+    var annualHits = 0;
+    var rewrittenBytes = null;
+
+    try {
+      rewrittenBytes = rewriteProtobufPayload(bytes, isGrpc, isGrpcWeb, function (id) {
+        var resolved = resolveTarget(id, extracted, cfg);
+        if (!resolved) return null;
+        if (!mappings[id]) {
+          mappings[id] = { id: id, to: resolved.to, count: 0, fallback: resolved.fallback };
+        }
+        mappings[id].count += 1;
+        hits += 1;
+        if (resolved.is2tb) annualHits += 1;
+        return resolved.to;
+      });
+    } catch (error) {
+      console.log("[g1-aio-v1] native protobuf rewrite aborted: " + (error && error.message ? error.message : "error"));
+      $done({});
+      return;
+    }
+
+    saveTestRecord(cfg, mappings, hits, annualHits, hits ? "rewritten" : "no-match");
+    logRewrite(cfg, "native", mappings, hits, annualHits);
+    notifyOutcome(cfg, mappings, hits, annualHits, scanResult, "Native");
+    $done(hits && rewrittenBytes ? { body: rewrittenBytes } : {});
+  }
+
+  function resolveTarget(id, observedList, cfg) {
+    var is2tb = id.indexOf(SOURCE_PREFIX) === 0 && id.length > SOURCE_PREFIX.length;
+    var to;
+    var fallback = false;
+    if (is2tb) {
+      if (!cfg.enable2tb) return null;
+      to = cfg.target2tb;
+    } else if (id === "g1.ios.20tb.m.v2") {
+      if (!cfg.enable20tb) return null;
+      to = SKU_MAP[id];
+      if (observedList.indexOf(to) === -1 && FALLBACK[to] && observedList.indexOf(FALLBACK[to]) !== -1) {
+        to = FALLBACK[to];
+        fallback = true;
+      }
+    } else if (id === "g1.ios.30tb.ai.pro.m") {
+      if (!cfg.enable30tb) return null;
+      to = SKU_MAP[id];
+      if (observedList.indexOf(to) === -1 && FALLBACK[to] && observedList.indexOf(FALLBACK[to]) !== -1) {
+        to = FALLBACK[to];
+        fallback = true;
+      }
+    } else {
+      return null;
+    }
+    return { to: to, fallback: fallback, is2tb: is2tb };
+  }
+
+  function saveTestRecord(cfg, mappings, hits, annualHits, status) {
+    var sources = Object.keys(mappings).sort().map(function (id) {
+      return mappings[id];
+    });
+    var record = {
+      schemaVersion: 1,
+      version: VERSION,
+      updatedAt: new Date().toISOString(),
+      sourcePrefix: SOURCE_PREFIX,
+      target: cfg.target2tb,
+      targetOrigin: cfg.target2tb === DEFAULT_TARGET ? "user-specified" : "custom",
+      hitCount: hits,
+      annualHitCount: annualHits,
+      matchedFrom: sources,
+      status: status
+    };
+    try {
+      if (typeof $persistentStore !== "undefined" && typeof $persistentStore.write === "function") {
+        if (!$persistentStore.write(JSON.stringify(record), TEST_KEY)) {
+          console.log("[g1-aio-v1] local record write failed");
+        }
+      }
+    } catch (error) {
+      console.log("[g1-aio-v1] local record unavailable");
+    }
+  }
+
+  function logRewrite(cfg, channel, mappings, hits, annualHits) {
+    console.log("[g1-aio-v1] " + VERSION + " channel=" + channel + " mode=" + cfg.mode +
+      " strict=" + (cfg.strictCatalog ? "1" : "0") + " hits=" + hits + " annualHits=" + annualHits);
+    Object.keys(mappings).sort().forEach(function (id) {
+      var source = mappings[id];
+      console.log("[g1-aio-v1] " + source.id + " -> " + source.to + " x" + source.count +
+        (source.fallback ? " fallback=75p" : ""));
+    });
+  }
+
+  function notifyOutcome(cfg, mappings, hits, annualHits, scanResult, channelLabel) {
+    if (!cfg.notify) return;
+    if (hits > 0) {
+      var summary = Object.keys(mappings).sort().map(function (id) {
+        var source = mappings[id];
+        return source.id + " -> " + source.to + " (x" + source.count + ")";
+      }).join("; ");
+      notifyUser(
+        "G1 ALL IN ONE_V1 (" + channelLabel + ")",
+        "Đã ghi đè " + hits + " SKU (2TB: " + annualHits + ")",
+        summary
+      );
+    } else if (scanResult.addedCount > 0) {
+      notifyUser(
+        "G1 ALL IN ONE_V1 (" + channelLabel + ")",
+        "Phát hiện +" + scanResult.addedCount + " SKU mới",
+        "Mở one.google.com/g1-sku-report để xem"
+      );
+    }
+  }
+
+  function decodeTextBody(body) {
+    if (typeof body === "string" || body == null) return body;
+    var bytes = toUint8Array(body);
+    if (!bytes) return body;
+    if (typeof TextDecoder !== "undefined") {
+      try {
+        return new TextDecoder("utf-8").decode(bytes);
+      } catch (error) {
+        return body;
+      }
+    }
+    return bytesToAsciiIfPrintable(bytes) || body;
+  }
+
+  function bytesToAsciiIfPrintable(bytes) {
+    var out = "";
+    for (var i = 0; i < bytes.length; i++) {
+      var b = bytes[i];
+      if (b === 9 || b === 10 || b === 13 || (b >= 32 && b <= 126)) {
+        out += String.fromCharCode(b);
+      } else {
+        return null;
+      }
+    }
+    return out;
+  }
+
+  function toUint8Array(value) {
+    if (!value) return null;
+    if (value instanceof Uint8Array) return value;
+    if (typeof ArrayBuffer !== "undefined" && value instanceof ArrayBuffer) {
+      return new Uint8Array(value);
+    }
+    if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView && ArrayBuffer.isView(value)) {
+      return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    }
+    return null;
+  }
+
+  function getResponseContentType() {
+    if (typeof $response !== "object" || !$response || !$response.headers) return "";
+    var headers = $response.headers;
+    if (typeof headers.get === "function") {
+      return String(headers.get("content-type") || "").toLowerCase();
+    }
+    var keys = Object.keys(headers);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].toLowerCase() === "content-type") {
+        return String(headers[keys[i]] || "").toLowerCase();
+      }
+    }
+    return "";
+  }
+
+  function collectFromText(originalBody, routeLabel) {
+    var isText = typeof originalBody === "string";
+    var tokens = [];
+    if (isText) {
+      var text = originalBody.replace(/\\u002e|\\x2e|&#0*46;|&#x0*2e;|&period;/gi, ".");
+      var tokenRx = /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g;
+      var match;
+      while ((match = tokenRx.exec(text)) !== null) {
+        tokens.push(match[2]);
+      }
+    }
+    return recordScan(tokens, routeLabel, isText);
+  }
+
+  function recordScan(tokens, routeLabel, isScannable) {
+    var now = new Date().toISOString();
+    var saved = {};
+    try {
+      if (typeof $persistentStore !== "undefined" && typeof $persistentStore.read === "function") {
+        saved = JSON.parse($persistentStore.read(SCAN_KEY) || "{}");
+      }
+    } catch (error) {
+      saved = {};
+    }
+    if (!saved || saved.schemaVersion !== 1) saved = {};
+
+    var byId = Object.create(null);
+    var ids = [];
+    var validId = /^(?:g\d+\.(?:ios|ai)\.|g1\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
+    var oldRows = Array.isArray(saved.skus) ? saved.skus : [];
+    oldRows.slice(0, SCAN_LIMIT).forEach(function (row) {
+      if (!row || typeof row.id !== "string" || !validId.test(row.id) || byId[row.id]) return;
+      var count = Number(row.count);
+      byId[row.id] = {
+        id: row.id,
+        count: isFinite(count) && count > 0 ? Math.floor(count) : 0,
+        lastSeen: typeof row.lastSeen === "string" ? row.lastSeen.slice(0, 32) : ""
+      };
+      ids.push(row.id);
+    });
+
+    var found = Object.create(null);
+    var hitCount = 0;
+    var addedCount = 0;
+    var omittedCount = 0;
+    var truncated = saved.truncated === true;
+
+    if (isScannable) {
+      for (var i = 0; i < tokens.length; i++) {
+        var id = tokens[i];
+        if (!validId.test(id)) continue;
+        found[id] = (found[id] || 0) + 1;
+        hitCount += 1;
+        if (!byId[id]) {
+          if (ids.length >= SCAN_LIMIT) {
+            truncated = true;
+            if (found[id] === 1) omittedCount += 1;
+            continue;
+          }
+          byId[id] = { id: id, count: 0, lastSeen: now };
+          ids.push(id);
+          addedCount += 1;
+        }
+        byId[id].count += 1;
+        byId[id].lastSeen = now;
+      }
+    }
+
+    var candidateCount = Object.keys(found).length;
+    var bodyType = isScannable ? "text" : "non-text";
+    var status = responseStatus(bodyType, candidateCount, addedCount, omittedCount);
+    var recentResponses = [];
+    var oldResponses = Array.isArray(saved.recentResponses) ? saved.recentResponses : [];
+    oldResponses.slice(-RECENT_LIMIT).forEach(function (row) {
+      var event = priorResponse(row);
+      if (event) recentResponses.push(event);
+    });
+    recentResponses.push({
+      at: now,
+      path: routeLabel,
+      bodyType: bodyType,
+      status: status,
+      candidateCount: candidateCount,
+      addedCount: addedCount,
+      omittedCount: omittedCount
+    });
+
+    function priorCount(value) {
+      var number = Number(value);
+      return isFinite(number) && number > 0 ? Math.floor(number) : 0;
+    }
+    var state = {
+      schemaVersion: 1,
+      version: VERSION,
+      updatedAt: now,
+      scannedResponses: priorCount(saved.scannedResponses) + (isScannable ? 1 : 0),
+      matchedResponses: priorCount(saved.matchedResponses) + (hitCount > 0 ? 1 : 0),
+      nonTextResponses: priorCount(saved.nonTextResponses) + (isScannable ? 0 : 1),
+      recentResponses: recentResponses.slice(-RECENT_LIMIT),
+      limit: SCAN_LIMIT,
+      truncated: truncated,
+      skus: ids.sort().map(function (id) { return byId[id]; })
+    };
+
+    var stored = false;
+    try {
+      if (typeof $persistentStore !== "undefined" && typeof $persistentStore.write === "function") {
+        stored = $persistentStore.write(JSON.stringify(state), SCAN_KEY);
+      }
+    } catch (error) {
+      stored = false;
+    }
+
+    console.log("[g1-aio-v1] " + VERSION + " route=" + routeLabel + " status=" + status +
+      " addedCount=" + addedCount + " candidates=" + candidateCount + " omittedCount=" + omittedCount +
+      " occurrences=" + hitCount + " saved=" + (stored ? "yes" : "no"));
+    return { addedCount: addedCount, candidateCount: candidateCount };
+  }
+
+  /* ---------- Protobuf & gRPC binary inspection + length-safe rewriting ---------- */
+
+  function extractProtobufTokens(bytes, isGrpc, isGrpcWeb) {
+    var tokens = [];
+    var state = { fields: 0 };
+    if (!isGrpc) {
+      inspectProtoMessage(bytes, 0, state, tokens);
+      return tokens;
+    }
+    var offset = 0;
+    while (offset < bytes.length) {
+      if (offset + 5 > bytes.length) throw new Error("truncated grpc header");
+      var flag = bytes[offset];
+      var len = readUint32BE(bytes, offset + 1);
+      var end = offset + 5 + len;
+      if (end > bytes.length) throw new Error("truncated grpc frame");
+      if (flag === 128 && isGrpcWeb) {
+        // Skip gRPC-web trailer frame.
+      } else {
+        if (flag !== 0) throw new Error("compressed grpc unsupported");
+        inspectProtoMessage(bytes.subarray(offset + 5, end), 0, state, tokens);
+      }
+      offset = end;
+    }
+    return tokens;
+  }
+
+  function inspectProtoMessage(data, depth, state, tokens) {
+    if (depth > MAX_PROTO_DEPTH) throw new Error("nesting limit");
+    var offset = 0;
+    while (offset < data.length) {
+      if (++state.fields > MAX_PROTO_FIELDS) throw new Error("field limit");
+      var tag = readVarint(data, offset);
+      offset = tag.offset;
+      var wire = tag.value % 8;
+      var fieldNum = Math.floor(tag.value / 8);
+      if (!fieldNum) throw new Error("zero field number");
+      if (wire === 0) {
+        offset = skipVarint(data, offset);
+      } else if (wire === 1) {
+        offset += 8;
+      } else if (wire === 5) {
+        offset += 4;
+      } else if (wire === 2) {
+        var size = readVarint(data, offset);
+        var end = size.offset + size.value;
+        if (end > data.length) throw new Error("truncated length field");
+        var payload = data.subarray(size.offset, end);
+        var tok = parseProductAscii(payload);
+        if (tok) {
+          tokens.push(tok);
+        } else if (payload.length) {
+          try {
+            inspectProtoMessage(payload, depth + 1, state, tokens);
+          } catch (nestedError) {
+            if (nestedError && (nestedError.message === "nesting limit" || nestedError.message === "field limit")) {
+              throw nestedError;
+            }
+          }
+        }
+        offset = end;
+      } else {
+        throw new Error("unsupported wire type");
+      }
+      if (offset > data.length) throw new Error("truncated fixed field");
+    }
+  }
+
+  function rewriteProtobufPayload(bytes, isGrpc, isGrpcWeb, replacer) {
+    var state = { fields: 0 };
+    if (!isGrpc) {
+      var res = rewriteProtoMessage(bytes, 0, state, replacer);
+      return res.changed ? res.bytes : null;
+    }
+    var frames = [];
+    var totalLength = 0;
+    var anyChanged = false;
+    var offset = 0;
+    while (offset < bytes.length) {
+      if (offset + 5 > bytes.length) throw new Error("truncated grpc header");
+      var flag = bytes[offset];
+      var len = readUint32BE(bytes, offset + 1);
+      var end = offset + 5 + len;
+      if (end > bytes.length) throw new Error("truncated grpc frame");
+      if (flag === 128 && isGrpcWeb) {
+        var trailer = bytes.subarray(offset, end);
+        frames.push(trailer);
+        totalLength += trailer.length;
+      } else {
+        if (flag !== 0) throw new Error("compressed grpc unsupported");
+        var frameMsg = rewriteProtoMessage(bytes.subarray(offset + 5, end), 0, state, replacer);
+        if (frameMsg.changed) anyChanged = true;
+        var outFrame = new Uint8Array(5 + frameMsg.bytes.length);
+        outFrame[0] = flag;
+        writeUint32BE(outFrame, 1, frameMsg.bytes.length);
+        outFrame.set(frameMsg.bytes, 5);
+        frames.push(outFrame);
+        totalLength += outFrame.length;
+      }
+      offset = end;
+    }
+    if (!anyChanged) return null;
+    return concatBytes(frames, totalLength);
+  }
+
+  function rewriteProtoMessage(data, depth, state, replacer) {
+    if (depth > MAX_PROTO_DEPTH) throw new Error("nesting limit");
+    var chunks = [];
+    var totalLen = 0;
+    var changed = false;
+    var offset = 0;
+
+    while (offset < data.length) {
+      if (++state.fields > MAX_PROTO_FIELDS) throw new Error("field limit");
+      var fieldStart = offset;
+      var tag = readVarint(data, offset);
+      offset = tag.offset;
+      var wire = tag.value % 8;
+      var fieldNum = Math.floor(tag.value / 8);
+      if (!fieldNum) throw new Error("zero field number");
+
+      if (wire === 0) {
+        offset = skipVarint(data, offset);
+        var rawV = data.subarray(fieldStart, offset);
+        chunks.push(rawV);
+        totalLen += rawV.length;
+      } else if (wire === 1) {
+        offset += 8;
+        if (offset > data.length) throw new Error("truncated fixed64");
+        var raw64 = data.subarray(fieldStart, offset);
+        chunks.push(raw64);
+        totalLen += raw64.length;
+      } else if (wire === 5) {
+        offset += 4;
+        if (offset > data.length) throw new Error("truncated fixed32");
+        var raw32 = data.subarray(fieldStart, offset);
+        chunks.push(raw32);
+        totalLen += raw32.length;
+      } else if (wire === 2) {
+        var tagBytes = data.subarray(fieldStart, offset);
+        var size = readVarint(data, offset);
+        var end = size.offset + size.value;
+        if (end > data.length) throw new Error("truncated length field");
+        var payload = data.subarray(size.offset, end);
+        var tok = parseProductAscii(payload);
+
+        if (tok) {
+          var replacement = replacer(tok);
+          if (replacement) {
+            var repBytes = asciiToBytes(replacement);
+            var lenBytes = encodeVarint(repBytes.length);
+            chunks.push(tagBytes, lenBytes, repBytes);
+            totalLen += tagBytes.length + lenBytes.length + repBytes.length;
+            changed = true;
+          } else {
+            var rawTokField = data.subarray(fieldStart, end);
+            chunks.push(rawTokField);
+            totalLen += rawTokField.length;
+          }
+        } else if (payload.length) {
+          var nestedChanged = false;
+          var nestedBytes = payload;
+          try {
+            var nested = rewriteProtoMessage(payload, depth + 1, state, replacer);
+            if (nested.changed) {
+              nestedChanged = true;
+              nestedBytes = nested.bytes;
+            }
+          } catch (nestedError) {
+            if (nestedError && (nestedError.message === "nesting limit" || nestedError.message === "field limit")) {
+              throw nestedError;
+            }
+            nestedChanged = false;
+          }
+          if (nestedChanged) {
+            var newLenBytes = encodeVarint(nestedBytes.length);
+            chunks.push(tagBytes, newLenBytes, nestedBytes);
+            totalLen += tagBytes.length + newLenBytes.length + nestedBytes.length;
+            changed = true;
+          } else {
+            var rawNested = data.subarray(fieldStart, end);
+            chunks.push(rawNested);
+            totalLen += rawNested.length;
+          }
+        } else {
+          var rawEmpty = data.subarray(fieldStart, end);
+          chunks.push(rawEmpty);
+          totalLen += rawEmpty.length;
+        }
+        offset = end;
+      } else {
+        throw new Error("unsupported wire type");
+      }
+    }
+
+    if (!changed) return { changed: false, bytes: data };
+    return { changed: true, bytes: concatBytes(chunks, totalLen) };
+  }
+
+  function parseProductAscii(bytes) {
+    if (bytes.length < 8 || bytes.length > 160) return null;
+    var value = "";
+    for (var i = 0; i < bytes.length; i++) {
+      var b = bytes[i];
+      if (!((b >= 48 && b <= 57) || (b >= 65 && b <= 90) || (b >= 97 && b <= 122) || b === 45 || b === 46 || b === 95)) {
+        return null;
+      }
+      value += String.fromCharCode(b);
+    }
+    return /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)/.test(value) ? value : null;
+  }
+
+  function asciiToBytes(str) {
+    var out = new Uint8Array(str.length);
+    for (var i = 0; i < str.length; i++) {
+      out[i] = str.charCodeAt(i) & 0xff;
+    }
+    return out;
+  }
+
+  function encodeVarint(n) {
+    var out = [];
+    var v = n >>> 0;
+    while (v >= 128) {
+      out.push((v & 0x7f) | 0x80);
+      v = v >>> 7;
+    }
+    out.push(v);
+    return new Uint8Array(out);
+  }
+
+  function readVarint(data, offset) {
+    var value = 0;
+    var power = 1;
+    for (var i = 0; i < 5; i++) {
+      if (offset >= data.length) throw new Error("truncated varint");
+      var byte = data[offset++];
+      if (i === 4 && byte > 15) throw new Error("uint32 overflow");
+      value += (byte & 127) * power;
+      if (!(byte & 128)) return { value: value, offset: offset };
+      power *= 128;
+    }
+    throw new Error("overlong varint");
+  }
+
+  function skipVarint(data, offset) {
+    for (var i = 0; i < 10; i++) {
+      if (offset >= data.length) throw new Error("truncated scalar");
+      var byte = data[offset++];
+      if (i === 9 && byte > 1) throw new Error("uint64 overflow");
+      if (!(byte & 128)) return offset;
+    }
+    throw new Error("overlong scalar");
+  }
+
+  function readUint32BE(bytes, offset) {
+    return ((bytes[offset] << 24) >>> 0) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3];
+  }
+
+  function writeUint32BE(bytes, offset, value) {
+    bytes[offset] = (value >>> 24) & 0xff;
+    bytes[offset + 1] = (value >>> 16) & 0xff;
+    bytes[offset + 2] = (value >>> 8) & 0xff;
+    bytes[offset + 3] = value & 0xff;
+  }
+
+  function concatBytes(chunks, totalLen) {
+    var out = new Uint8Array(totalLen);
+    var pos = 0;
+    for (var i = 0; i < chunks.length; i++) {
+      out.set(chunks[i], pos);
+      pos += chunks[i].length;
+    }
+    return out;
+  }
+
+  /* ---------- Config, notifications & shared diagnostics helpers ---------- */
+
+  function loadConfig() {
+    var defaults = {
+      schemaVersion: 1,
+      mode: "auto",
+      target2tb: DEFAULT_TARGET,
+      enable2tb: true,
+      enable20tb: true,
+      enable30tb: true,
+      rewriteScope: "ai",
+      nativeMode: "scan",
+      strictCatalog: false,
+      notify: true
+    };
+    try {
+      if (typeof $persistentStore === "undefined" || typeof $persistentStore.read !== "function") {
+        return defaults;
+      }
+      var raw = $persistentStore.read(CONFIG_KEY);
+      if (!raw) return defaults;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
+      if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
+        defaults.mode = parsed.mode;
+      }
+      if (typeof parsed.target2tb === "string" && /^g1\.[A-Za-z0-9._-]{1,160}$/.test(parsed.target2tb)) {
+        defaults.target2tb = parsed.target2tb;
+      }
+      if (parsed.enable2tb === false) defaults.enable2tb = false;
+      if (parsed.enable20tb === false) defaults.enable20tb = false;
+      if (parsed.enable30tb === false) defaults.enable30tb = false;
+      if (parsed.rewriteScope === "extended") defaults.rewriteScope = "extended";
+      if (parsed.nativeMode === "scan" || parsed.nativeMode === "rewrite" || parsed.nativeMode === "off") {
+        defaults.nativeMode = parsed.nativeMode;
+      }
+      if (parsed.strictCatalog === true) defaults.strictCatalog = true;
+      if (parsed.notify === false) defaults.notify = false;
+    } catch (error) {
+      return defaults;
+    }
+    return defaults;
+  }
+
+  function notifyUser(title, subtitle, message) {
+    try {
+      if (typeof $notification === "object" && $notification && typeof $notification.post === "function") {
+        $notification.post(title, subtitle, message);
+      }
+    } catch (error) {
+      console.log("[g1-aio-v1] notification failed");
+    }
+  }
+
+  function safeRoute(requestUrl) {
+    var path = requestUrl.replace(/^https:\/\/one\.google\.com/, "").split(/[?#]/)[0];
+    path = path.replace(/\/+$/, "") || "/";
+    if (path === "/" || path === "/ai" || path === "/plans") return path;
+    if (/^\/_\/[^?#]+\/data\/batchexecute$/.test(path)) return "/_/…/data/batchexecute";
+    return OTHER_PATH;
+  }
+
+  function responseStatus(bodyTypeValue, candidates, added, omitted) {
+    if (bodyTypeValue === "non-text") return "non-text";
+    if (added > 0) return "new-skus";
+    if (omitted > 0) return "limit-reached";
+    return candidates > 0 ? "known-skus" : "no-skus";
+  }
+
+  function priorResponse(row) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+    if (typeof row.at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(row.at) ||
+        !isFinite(Date.parse(row.at)) || new Date(row.at).toISOString() !== row.at) return null;
+    var path = row.path === LEGACY_OTHER_PATH ? OTHER_PATH : row.path;
+    if (path !== "/" && path !== "/ai" && path !== "/plans" &&
+        path !== "/_/…/data/batchexecute" && path !== OTHER_PATH && path !== NATIVE_PATH) return null;
+    if (row.bodyType !== "text" && row.bodyType !== "non-text") return null;
+
+    function counter(value, maximum) {
+      if (typeof value !== "number" || !isFinite(value)) return null;
+      return Math.max(0, Math.min(maximum, Math.floor(value)));
+    }
+    var candidates = counter(row.candidateCount, MAX_EVENT_COUNT);
+    if (candidates === null) return null;
+    var added = counter(row.addedCount, Math.min(SCAN_LIMIT, candidates));
+    if (added === null) return null;
+    var omitted = counter(row.omittedCount, candidates - added);
+    if (omitted === null) return null;
+    if (row.bodyType === "non-text" && (candidates || added || omitted)) return null;
+    if (row.status !== responseStatus(row.bodyType, candidates, added, omitted)) return null;
+    return {
+      at: row.at,
+      path: path,
+      bodyType: row.bodyType,
+      status: row.status,
+      candidateCount: candidates,
+      addedCount: added,
+      omittedCount: omitted
+    };
+  }
+})();

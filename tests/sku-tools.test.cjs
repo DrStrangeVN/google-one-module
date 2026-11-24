@@ -23,13 +23,17 @@ const THIRTY_TARGET = "g1.ai.ultra.3months_ip_90p.acq";
 const TWENTY_FALLBACK = "g1.20tb.3months_ip_75p.acq";
 const THIRTY_FALLBACK = "g1.ai.ultra.3months_ip_75p.acq";
 const source = Object.fromEntries(
-  ["g1-acq.js", "g1-all-in-one.js", "tests/fixtures/g1-acq-v6.js", "g1-sku-scan.js", "g1-sku-report.js"].map(name =>
-    [name, fs.readFileSync(path.join(root, name), "utf8")])
+  [
+    "g1-acq.js", "g1-all-in-one.js", "g1-all-in-one-v1.js",
+    "tests/fixtures/g1-acq-v6.js", "g1-sku-scan.js",
+    "g1-sku-report.js", "g1-sku-report-v1.js"
+  ].map(name => [name, fs.readFileSync(path.join(root, name), "utf8")])
 );
 
 function run(name, options = {}) {
   const storage = options.storage || new Map();
   const calls = [];
+  const binaryBodies = [];
   const logs = [];
   const reads = [];
   const writes = [];
@@ -39,8 +43,18 @@ function run(name, options = {}) {
       url: options.url || "https://one.google.com/ai?fixture=1",
       headers: { Cookie: "cookie-secret", Authorization: "auth-secret" }
     },
-    $response: { body: options.body, headers: { "x-private": "response-secret" } },
-    $done: payload => calls.push(JSON.parse(JSON.stringify(payload))),
+    $response: {
+      body: options.body,
+      headers: options.responseHeaders || { "x-private": "response-secret" }
+    },
+    $done: payload => {
+      if (payload && ArrayBuffer.isView(payload.body)) {
+        binaryBodies.push(Uint8Array.from(payload.body));
+      } else {
+        binaryBodies.push(null);
+      }
+      calls.push(JSON.parse(JSON.stringify(payload)));
+    },
     console: { log: value => logs.push(String(value)) }
   };
   if (options.notificationAvailable !== false) {
@@ -69,7 +83,7 @@ function run(name, options = {}) {
   }
   vm.runInNewContext(source[name], context, { timeout: 2000, filename: name });
   assert.equal(calls.length, 1, "$done must be called once");
-  return { payload: calls[0], storage, logs, reads, writes, notifications };
+  return { payload: calls[0], binaryBody: binaryBodies[0], storage, logs, reads, writes, notifications };
 }
 
 function get(storage, key) {
@@ -713,6 +727,172 @@ test("all Shadowrocket modules and Loon plugins share DrStrangeVN/google-one-mod
     }
     for (const url of [REPORT + "-other", REPORT + "/other", "https://one.google.com.evil/g1-sku-report"]) {
       assert(!reqPattern.test(url));
+    }
+  }
+});
+
+function encodeVarintTest(n) {
+  const out = [];
+  let v = n >>> 0;
+  while (v >= 128) {
+    out.push((v & 0x7f) | 0x80);
+    v >>>= 7;
+  }
+  out.push(v);
+  return Uint8Array.from(out);
+}
+
+function makeProtoField(fieldNum, wireType, payloadBytes) {
+  const tag = encodeVarintTest((fieldNum << 3) | wireType);
+  if (wireType === 2) {
+    const len = encodeVarintTest(payloadBytes.length);
+    return Buffer.concat([tag, len, payloadBytes]);
+  }
+  return Buffer.concat([tag, payloadBytes]);
+}
+
+function makeGrpcFrame(flag, msgBytes) {
+  const header = Buffer.alloc(5);
+  header[0] = flag;
+  header.writeUInt32BE(msgBytes.length, 1);
+  return Buffer.concat([header, msgBytes]);
+}
+
+test("ALL IN ONE_V1 web decodes Uint8Array UTF-8 and honors strictCatalog gate", () => {
+  const bytes = new TextEncoder().encode(JSON.stringify([SOURCE, TWENTY]));
+  const strictOn = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "auto", target2tb: TARGET, strictCatalog: true,
+    enable2tb: true, enable20tb: true, enable30tb: true, rewriteScope: "ai", notify: false
+  })]]);
+  const skipped = run("g1-all-in-one-v1.js", { body: bytes, storage: strictOn });
+  assert.deepEqual(skipped.payload, {});
+  assert.equal(get(strictOn, TEST_KEY).status, "skipped-strict-catalog");
+  assert.equal(get(strictOn, SCAN_KEY).skus.length, 2);
+
+  const withPromo = new TextEncoder().encode(JSON.stringify([TWENTY, TWENTY_TARGET]));
+  const rewritten = run("g1-all-in-one-v1.js", { body: withPromo, storage: strictOn });
+  assert.deepEqual(JSON.parse(rewritten.payload.body), [TWENTY_TARGET, TWENTY_TARGET]);
+  assert.equal(get(strictOn, TEST_KEY).status, "rewritten");
+});
+
+test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint length boundaries", () => {
+  const NATIVE_URL = "https://subscriptionsmobile-pa.googleapis.com/$rpc/google.internal.subscriptions.mobile.v1.SubscriptionsApiMobileService/GetDynamicStorefrontInfo?";
+  const skuField = makeProtoField(1, 2, Buffer.from(TWENTY, "ascii"));
+  const paddingField = makeProtoField(2, 2, Buffer.alloc(104, 0x61)); // 104+2 = 106; + 18 (skuField) = 124 (<128)
+  const innerMsg = Buffer.concat([skuField, paddingField]);
+  assert(innerMsg.length < 128);
+  const outerMsg = makeProtoField(3, 2, innerMsg);
+  const grpcTrailer = makeGrpcFrame(0x80, Buffer.from("grpc-status: 0\r\n", "ascii"));
+  const fullPayload = new Uint8Array(Buffer.concat([makeGrpcFrame(0, outerMsg), grpcTrailer]));
+
+  // Default nativeMode is "scan": collects SKU without modifying binary response.
+  const scanOnly = run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: fullPayload,
+    responseHeaders: { "content-type": "application/grpc-web+proto" }
+  });
+  assert.deepEqual(scanOnly.payload, {});
+  assert.equal(scanOnly.binaryBody, null);
+  const scan = get(scanOnly.storage, SCAN_KEY);
+  assert.equal(scan.version, "g1-aio-v1.0");
+  assert.equal(scan.skus[0].id, TWENTY);
+  assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
+
+  // Enable nativeMode: "rewrite": 16-byte TWENTY -> 25-byte TWENTY_TARGET crosses 127 -> 128 varint boundary!
+  const storage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "auto", target2tb: TARGET,
+    nativeMode: "rewrite", strictCatalog: false,
+    enable2tb: true, enable20tb: true, enable30tb: true, notify: true
+  })]]);
+  const rw = run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: fullPayload,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage
+  });
+  assert(rw.binaryBody instanceof Uint8Array);
+  assert.equal(get(storage, TEST_KEY).hitCount, 1);
+  assert.equal(get(storage, TEST_KEY).matchedFrom[0].to, TWENTY_TARGET);
+  assert.match(rw.notifications[0].title, /Native/);
+
+  // Re-inspect the rewritten Protobuf payload to prove lengths and gRPC frames are 100% valid!
+  const verifyStorage = new Map();
+  const verified = run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: rw.binaryBody,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage: verifyStorage
+  });
+  assert.deepEqual(verified.payload, {});
+  assert.equal(get(verifyStorage, SCAN_KEY).skus[0].id, TWENTY_TARGET);
+});
+
+test("ALL IN ONE_V1 report saves strictCatalog & nativeMode, highlights PROMO SKUs, and keeps strict CSP", () => {
+  const storage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=save&mode=auto&target2tb=" + TARGET + "&scope=extended&native=rewrite&strict=1&e2tb=1&e20tb=1&e30tb=1&notify=1",
+    storage
+  });
+  assert.deepEqual(get(storage, CONFIG_KEY), {
+    schemaVersion: 1,
+    mode: "auto",
+    target2tb: TARGET,
+    enable2tb: true,
+    enable20tb: true,
+    enable30tb: true,
+    rewriteScope: "extended",
+    nativeMode: "rewrite",
+    strictCatalog: true,
+    notify: true
+  });
+
+  // Note: e30tb was omitted in query -> false
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=save&mode=auto&target2tb=" + TARGET + "&scope=ai&native=scan&e2tb=1&e20tb=1",
+    storage
+  });
+  assert.equal(get(storage, CONFIG_KEY).enable30tb, false);
+  assert.equal(get(storage, CONFIG_KEY).strictCatalog, false);
+  assert.equal(get(storage, CONFIG_KEY).nativeMode, "scan");
+
+  run("g1-all-in-one-v1.js", { body: JSON.stringify(["g1.ios.2tb.m", TWENTY_TARGET]), storage });
+  const html = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
+  assert(html.includes("ALL IN ONE_V1"));
+  assert(html.includes("tag-promo"));
+  assert(html.includes("Dùng làm đích 2TB"));
+  assert(!/<(?:script|img|iframe)\b/i.test(html));
+  const skuSection = html.slice(html.indexOf("Danh sách SKU thu thập được"));
+  assert(skuSection.indexOf(TWENTY_TARGET) < skuSection.indexOf("g1.ios.2tb.m"));
+});
+
+test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC rules, headers and 3 script lines", () => {
+  const base = "https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/";
+  const v1Files = [
+    { file: "g1-all-in-one-v1.sgmodule", type: "shadowrocket" },
+    { file: "loon/g1-all-in-one-v1.plugin", type: "loon" },
+    { file: "surge/g1-all-in-one-v1.sgmodule", type: "surge" }
+  ];
+  for (const entry of v1Files) {
+    const content = fs.readFileSync(path.join(root, entry.file), "utf8");
+    const scripts = content.split("\n").filter(line => line.includes("script-path="));
+    assert.equal(scripts.length, 3, entry.file + " must have 3 script entries (web, native, report)");
+    for (const script of scripts) {
+      const url = script.match(/script-path=([^,\s]+)/)[1];
+      assert(url.startsWith(base));
+      assert(fs.existsSync(path.join(root, url.slice(base.length))));
+    }
+    assert.match(content, /one\.google\.com/);
+    assert.match(content, /subscriptionsmobile-pa\.googleapis\.com/);
+    assert.match(content, /header-del Accept-Encoding/);
+    // Ensure global UDP 443 reject is NOT present in any V1 module
+    assert(!/^AND,\(\(PROTOCOL,UDP\),\(DEST-PORT,443\)\)/m.test(content));
+    if (entry.type === "surge") {
+      assert.match(content, /max-size=-1/);
+      assert.match(content, /binary-body-mode=false/);
+      assert.match(content, /binary-body-mode=true/);
+    } else {
+      assert.match(content, /DOMAIN,one\.google\.com/);
+      assert.match(content, /DOMAIN,subscriptionsmobile-pa\.googleapis\.com/);
     }
   }
 });

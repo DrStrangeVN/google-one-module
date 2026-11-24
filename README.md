@@ -18,7 +18,7 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 ## Link cài đặt Module / Plugin
 
-### 1. Bản gộp All-in-One (Khuyên dùng — chỉ cần bật 1 cái)
+### 1. Bản gộp All-in-One (Bản ổn định đang dùng chính)
 
 * **Shadowrocket (`.sgmodule`):**
   ```text
@@ -29,7 +29,32 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
   https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-all-in-one.plugin
   ```
 
-### 2. Bản lẻ Backup (Giữ nguyên 2 module tách rời)
+### 2. Bản nâng cấp thử nghiệm: **G1 ALL IN ONE_V1**
+
+*(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
+
+* **Nâng cấp so với bản chính:**
+  * **Chặn QUIC theo domain**: Chỉ chặn `UDP 443` trên `one.google.com` & `subscriptionsmobile-pa.googleapis.com` (không làm chậm HTTP/3 của app khác).
+  * **Ép response thuần**: Tự xóa `Accept-Encoding`, `If-None-Match`, `If-Modified-Since` ở request và `Alt-Svc` ở response + tự giải mã `Uint8Array` bằng `TextDecoder`.
+  * **Hỗ trợ Native Protobuf (app Google One riêng)**: Bắt và giải mã API `GetDynamicStorefrontInfo`, có thể chọn *Chỉ quét* (mặc định) hoặc *Quét + Ghi đè Protobuf* ngay trên trang báo cáo.
+  * **Strict Catalog**: Tùy chọn chỉ ghi đè khi tài khoản có sẵn mã `.acq` / `_90p` / `_75p` trong response.
+  * **Highlight PROMO & gán 1 chạm**: Đẩy các mã khuyến mãi lên đầu bảng kèm nút *Dùng làm đích 2TB*.
+* **Link cài đặt `ALL IN ONE_V1`:**
+  * **Shadowrocket (`.sgmodule`):**
+    ```text
+    https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.sgmodule
+    ```
+  * **Loon (`.plugin`):**
+    ```text
+    https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-all-in-one-v1.plugin
+    ```
+    *Cài nhanh 1 chạm trên Loon:* [Mở trong Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2FDrStrangeVN%2Fgoogle-one-module%2Fmain%2Floon%2Fg1-all-in-one-v1.plugin)
+  * **Surge (`.sgmodule`):**
+    ```text
+    https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/surge/g1-all-in-one-v1.sgmodule
+    ```
+
+### 3. Bản lẻ Backup (Giữ nguyên 2 module tách rời)
 
 *(Chỉ dùng khi muốn chạy độc lập từng chức năng; luôn tắt các module trùng lặp để tránh chạy đè nhau.)*
 
@@ -98,7 +123,12 @@ Vào **Config → bấm biểu tượng (i) cạnh file cấu hình đang dùng 
 
 | File | Chức năng |
 |---|---|
-| [g1-all-in-one.sgmodule](g1-all-in-one.sgmodule) | **Module gộp tối ưu Shadowrocket** (dùng `g1-all-in-one.js` + `g1-sku-report.js`) |
+| [g1-all-in-one-v1.sgmodule](g1-all-in-one-v1.sgmodule) | **Module thử nghiệm ALL IN ONE_V1 cho Shadowrocket** |
+| [loon/g1-all-in-one-v1.plugin](loon/g1-all-in-one-v1.plugin) | **Plugin thử nghiệm ALL IN ONE_V1 cho Loon** |
+| [surge/g1-all-in-one-v1.sgmodule](surge/g1-all-in-one-v1.sgmodule) | **Module thử nghiệm ALL IN ONE_V1 cho Surge** |
+| [g1-all-in-one-v1.js](g1-all-in-one-v1.js) | Engine ALL IN ONE_V1 (Web + Native Protobuf + Strict Catalog) |
+| [g1-sku-report-v1.js](g1-sku-report-v1.js) | Trang báo cáo & Bảng điều khiển cho ALL IN ONE_V1 |
+| [g1-all-in-one.sgmodule](g1-all-in-one.sgmodule) | **Module gộp ổn định Shadowrocket** (dùng `g1-all-in-one.js` + `g1-sku-report.js`) |
 | [loon/g1-all-in-one.plugin](loon/g1-all-in-one.plugin) | **Plugin gộp tối ưu Loon** (dùng `g1-all-in-one.js` + `g1-sku-report.js`) |
 | [g1-all-in-one.js](g1-all-in-one.js) | Engine gộp v7.5: quét + ghi đè theo cấu hình động + thông báo iOS |
 | [g1-acq-v7.sgmodule](g1-acq-v7.sgmodule) | Bản lẻ backup Shadowrocket: G1 ACQ v7.5.0 |
