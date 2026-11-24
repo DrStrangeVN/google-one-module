@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1.1: 3 Profiles (Promo 90p / Ultra 1M Free / 11-Button EFT Probe), Web + Native Protobuf, Strict Catalog & HTML Overlay Panel. */
+/* Google One ALL IN ONE_V1 (v2.0 Studio): 5 Profiles, Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v1.1";
+  var VERSION = "g1-aio-v2.0";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -32,6 +32,7 @@
   var SCAN_KEY = "g1.sku.scan.v1";
   var SCAN_LIMIT = 300;
   var RECENT_LIMIT = 10;
+  var MAX_CUSTOM_RULES = 12;
   var MAX_EVENT_COUNT = 9007199254740991;
   var MAX_PROTO_BODY = 2 * 1024 * 1024;
   var MAX_PROTO_FIELDS = 50000;
@@ -39,6 +40,7 @@
   var OTHER_PATH = "[Đường dẫn one.google.com khác]";
   var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
   var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
+  var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
   var url = typeof $request === "object" && $request ? $request.url : "";
 
   if (typeof url !== "string") {
@@ -107,7 +109,7 @@
     }
 
     if (typeof body === "string" && cfg.strictCatalog) {
-      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,60}(?:acq|_90p|_75p|_eft)/g) || [];
+      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,80}(?:acq|_90p|_85p|_83p|_75p|_eft|subs_variant)/g) || [];
       if (!promoCatalog.length) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
         console.log("[g1-aio-v1] strictCatalog=on, no promo SKUs in catalog -> passthrough");
@@ -122,7 +124,7 @@
     var out = body;
 
     if (typeof body === "string") {
-      var observed = body.match(/g1\.[a-z0-9._]{2,60}acq/g) || [];
+      var observed = body.match(/g1\.[a-z0-9._]{2,80}acq/g) || [];
       out = body.replace(
         /(^|[^A-Za-z0-9._@%-])(g1\.[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
         function (match, before, id) {
@@ -210,7 +212,7 @@
 
     if (cfg.strictCatalog) {
       var hasPromo = extracted.some(function (id) {
-        return /(?:acq|_90p|_75p|_eft)$/.test(id);
+        return /(?:acq|_90p|_85p|_83p|_75p|_eft|subs_variant)$/.test(id);
       });
       if (!hasPromo) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
@@ -252,6 +254,17 @@
   function resolveTarget(id, observedList, cfg) {
     var is2tb = id.indexOf(SOURCE_PREFIX) === 0 && id.length > SOURCE_PREFIX.length;
 
+    // Priority 1: User-defined custom rules override any profile mapping.
+    for (var i = 0; i < cfg.customRules.length; i++) {
+      if (cfg.customRules[i].from === id) {
+        return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+      }
+    }
+
+    if (cfg.profile === "custom-only") {
+      return null;
+    }
+
     if (cfg.profile === "ultra-1m-free") {
       if (id.indexOf("g1.ios.") === 0 && id.length > 7) {
         return { to: ULTRA_1M_TARGET, fallback: false, is2tb: is2tb };
@@ -266,12 +279,12 @@
       return null;
     }
 
-    // Default profile: "promo-90p"
+    // Both "hybrid-combo" and "promo-90p" share 20TB/30TB 90p/75p fallback; hybrid maps 2TB -> Ultra 1M Free.
     var to;
     var fallback = false;
     if (is2tb) {
       if (!cfg.enable2tb) return null;
-      to = cfg.target2tb;
+      to = cfg.profile === "hybrid-combo" ? ULTRA_1M_TARGET : cfg.target2tb;
     } else if (id === "g1.ios.20tb.m.v2") {
       if (!cfg.enable20tb) return null;
       to = SKU_MAP[id];
@@ -292,11 +305,30 @@
     return { to: to, fallback: fallback, is2tb: is2tb };
   }
 
+  function describeSku(id) {
+    var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
+      /20tb/i.test(id) ? "Ultra 20TB" :
+      /5tb/i.test(id) ? "AI Pro 5TB" :
+      /2tb/i.test(id) ? "AI Pro 2TB" :
+      /helium/i.test(id) ? "AI Plus 400GB" :
+      /200gb/i.test(id) ? "200GB" :
+      /100gb/i.test(id) ? "100GB" :
+      /30gb/i.test(id) ? "30GB" : "Google One";
+    if (/subs_variant/i.test(id)) return tier + " · Stacking";
+    var mMatch = id.match(/(\d+)\s*months?/i);
+    var dur = mMatch ? mMatch[1] + "T" : /\.a$|annual/i.test(id) ? "12T" : /\.m(?:\.v2)?$/i.test(id) ? "1T" : "";
+    var discMatch = id.match(/_ip_(\d+)p/i);
+    if (/_eft/i.test(id)) return tier + (dur ? " · " + dur : "") + " Free 0đ";
+    if (discMatch) return tier + (dur ? " · " + dur : "") + " Giảm " + discMatch[1] + "%";
+    if (/annual/i.test(id)) return tier + " · Gói Năm";
+    if (/ios\./i.test(id)) return tier + (dur ? " · " + dur : "") + " Gốc iOS";
+    return tier + (dur ? " · " + dur : "");
+  }
+
   function injectOverlayPanel(html, cfg, mappings, hits) {
     var lower = html.toLowerCase();
     var closeIdx = lower.lastIndexOf("</body>");
     if (closeIdx === -1) return html;
-    // Skip JSON-like payloads that merely happen to embed a string containing </body>.
     var trimmed = html.replace(/^\s+/, "");
     if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[" || trimmed.indexOf(")]}'") === 0) {
       return html;
@@ -304,25 +336,28 @@
     var keys = Object.keys(mappings).sort();
     var rows = keys.map(function (id) {
       var m = mappings[id];
-      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;background:rgba(255,255,255,0.06);border-radius:8px;">' +
-        '<div style="min-width:0;word-break:break-all;"><span style="color:#7dd3fc;">' + escHtml(m.id) +
-        '</span><br><span style="color:#4ade80;font-weight:600;">→ ' + escHtml(m.to) + '</span></div>' +
-        '<span style="flex:0 0 auto;background:rgba(74,222,128,0.16);color:#86efac;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">x' + m.count +
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 9px;margin:4px 0;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.085);border-radius:10px;">' +
+        '<div style="min-width:0;word-break:break-all;"><span style="color:#7DD3FC;font-size:11px;">' + escHtml(m.id) +
+        '</span><br><span style="color:#34D399;font-weight:600;">→ ' + escHtml(m.to) +
+        '</span><span style="color:#A7B0C5;font-size:11px;margin-left:6px;">(' + escHtml(describeSku(m.to)) + ')</span></div>' +
+        '<span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">x' + m.count +
         (m.fallback ? ' · 75p' : '') + '</span></div>';
     });
+    var sparkIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     var panel =
-      '<details style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
-      'background:rgba(15,23,42,0.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);' +
-      'color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;' +
-      'line-height:1.4;padding:8px 12px;border-bottom:1.5px solid #22c55e;' +
-      'max-height:60vh;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,0.45);">' +
-      '<summary style="font-weight:700;font-size:12px;color:#4ade80;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
-      '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">● ' +
-      escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · ' + keys.length + ' mã (' + hits + 'x)') +
-      '</span><span style="flex:0 0 auto;background:rgba(74,222,128,0.18);color:#86efac;padding:2px 8px;border-radius:999px;font-size:11px;">Chi tiết ▾</span>' +
+      '<details style="position:fixed;top:8px;left:10px;right:10px;z-index:2147483647;' +
+      'background:rgba(22,25,35,0.94);-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%);' +
+      'color:#F3F5F9;font-family:-apple-system,BlinkMacSystemFont,&quot;SF Pro Text&quot;,sans-serif;font-size:12px;' +
+      'line-height:1.45;padding:9px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);' +
+      'max-height:60vh;overflow-y:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),0 16px 40px rgba(0,0,0,0.45);">' +
+      '<summary style="font-weight:600;font-size:12px;color:#F3F5F9;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+      '<span style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + sparkIcon +
+      '<span>' + escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · ' + keys.length + ' mã (' + hits + 'x)') + '</span>' +
+      '</span><span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">Chi tiết</span>' +
       '</summary><div style="margin-top:8px;">' + rows.join("") +
-      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' +
-      '<a href="https://one.google.com/g1-sku-report" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:6px 10px;border-radius:8px;font-weight:600;font-size:12px;">Mở Bảng điều khiển & Báo cáo</a>' +
+      '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
+      '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
+      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
       '</div></div></details>';
     return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
   }
@@ -331,16 +366,99 @@
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  function sanitizeMatchedRows(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, 64).filter(function (row) {
+      return row && typeof row.id === "string" && VALID_TOKEN.test(row.id) &&
+        typeof row.to === "string" && VALID_TOKEN.test(row.to);
+    }).map(function (row) {
+      var c = Number(row.count);
+      return {
+        id: row.id,
+        to: row.to,
+        count: isFinite(c) && c > 0 ? Math.floor(c) : 0,
+        fallback: row.fallback === true
+      };
+    });
+  }
+
+  function sanitizeRecentRewrites(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(-9).filter(function (row) {
+      return row && typeof row === "object" && !Array.isArray(row) &&
+        typeof row.at === "string" && /^\d{4}-\d{2}-\d{2}T/.test(row.at) &&
+        typeof row.status === "string";
+    }).map(function (row) {
+      var hc = Number(row.hitCount);
+      var ahc = Number(row.annualHitCount);
+      return {
+        at: row.at.slice(0, 32),
+        profile: typeof row.profile === "string" ? row.profile.slice(0, 32) : "promo-90p",
+        status: row.status.slice(0, 32),
+        hitCount: isFinite(hc) && hc >= 0 ? Math.floor(hc) : 0,
+        annualHitCount: isFinite(ahc) && ahc >= 0 ? Math.floor(ahc) : 0
+      };
+    });
+  }
+
+  function sanitizeLastSuccess(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var hc = Number(raw.hitCount);
+    if (!isFinite(hc) || hc <= 0 || typeof raw.at !== "string") return null;
+    var ahc = Number(raw.annualHitCount);
+    return {
+      at: raw.at.slice(0, 32),
+      version: typeof raw.version === "string" ? raw.version.slice(0, 32) : "",
+      profile: typeof raw.profile === "string" ? raw.profile.slice(0, 32) : "promo-90p",
+      target: typeof raw.target === "string" ? raw.target.slice(0, 160) : "",
+      hitCount: Math.floor(hc),
+      annualHitCount: isFinite(ahc) && ahc >= 0 ? Math.floor(ahc) : 0,
+      matchedFrom: sanitizeMatchedRows(raw.matchedFrom)
+    };
+  }
+
   function saveTestRecord(cfg, mappings, hits, annualHits, status) {
+    var now = new Date().toISOString();
+    var savedTest = {};
+    try {
+      if (typeof $persistentStore !== "undefined" && typeof $persistentStore.read === "function") {
+        savedTest = JSON.parse($persistentStore.read(TEST_KEY) || "{}");
+      }
+    } catch (error) {
+      savedTest = {};
+    }
+    if (!savedTest || savedTest.schemaVersion !== 1) savedTest = {};
+
     var sources = Object.keys(mappings).sort().map(function (id) {
       return mappings[id];
     });
-    var effectiveTarget = cfg.profile === "ultra-1m-free" ? ULTRA_1M_TARGET :
-      cfg.profile === "ultra-free-probe" ? "probe-11-eft" : cfg.target2tb;
+    var effectiveTarget = cfg.profile === "ultra-1m-free" || cfg.profile === "hybrid-combo" ? ULTRA_1M_TARGET :
+      cfg.profile === "ultra-free-probe" ? "probe-11-eft" :
+      cfg.profile === "custom-only" ? "custom-rules" : cfg.target2tb;
+
+    var recentRewrites = sanitizeRecentRewrites(savedTest.recentRewrites);
+    recentRewrites.push({
+      at: now,
+      profile: cfg.profile,
+      status: status,
+      hitCount: hits,
+      annualHitCount: annualHits
+    });
+
+    var lastSuccess = hits > 0 ? {
+      at: now,
+      version: VERSION,
+      profile: cfg.profile,
+      target: effectiveTarget,
+      hitCount: hits,
+      annualHitCount: annualHits,
+      matchedFrom: sources
+    } : sanitizeLastSuccess(savedTest.lastSuccess);
+
     var record = {
       schemaVersion: 1,
       version: VERSION,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
       sourcePrefix: SOURCE_PREFIX,
       target: effectiveTarget,
       targetOrigin: cfg.profile !== "promo-90p" ? "profile:" + cfg.profile :
@@ -348,7 +466,9 @@
       hitCount: hits,
       annualHitCount: annualHits,
       matchedFrom: sources,
-      status: status
+      status: status,
+      lastSuccess: lastSuccess,
+      recentRewrites: recentRewrites.slice(-RECENT_LIMIT)
     };
     try {
       if (typeof $persistentStore !== "undefined" && typeof $persistentStore.write === "function") {
@@ -475,10 +595,9 @@
 
     var byId = Object.create(null);
     var ids = [];
-    var validId = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
     var oldRows = Array.isArray(saved.skus) ? saved.skus : [];
     oldRows.slice(0, SCAN_LIMIT).forEach(function (row) {
-      if (!row || typeof row.id !== "string" || !validId.test(row.id) || byId[row.id]) return;
+      if (!row || typeof row.id !== "string" || !VALID_TOKEN.test(row.id) || byId[row.id]) return;
       var count = Number(row.count);
       byId[row.id] = {
         id: row.id,
@@ -497,7 +616,7 @@
     if (isScannable) {
       for (var i = 0; i < tokens.length; i++) {
         var id = tokens[i];
-        if (!validId.test(id)) continue;
+        if (!VALID_TOKEN.test(id)) continue;
         found[id] = (found[id] || 0) + 1;
         hitCount += 1;
         if (!byId[id]) {
@@ -775,7 +894,7 @@
       }
       value += String.fromCharCode(b);
     }
-    return /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)/.test(value) ? value : null;
+    return VALID_TOKEN.test(value) ? value : null;
   }
 
   function asciiToBytes(str) {
@@ -844,6 +963,22 @@
 
   /* ---------- Config, notifications & shared diagnostics helpers ---------- */
 
+  function sanitizeCustomRules(rawRules) {
+    if (!Array.isArray(rawRules)) return [];
+    var seen = Object.create(null);
+    var out = [];
+    for (var i = 0; i < rawRules.length && out.length < MAX_CUSTOM_RULES; i++) {
+      var item = rawRules[i];
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      var from = typeof item.from === "string" ? item.from.trim() : "";
+      var to = typeof item.to === "string" ? item.to.trim() : "";
+      if (!VALID_TOKEN.test(from) || !VALID_TOKEN.test(to) || from === to || seen[from]) continue;
+      seen[from] = true;
+      out.push({ from: from, to: to });
+    }
+    return out;
+  }
+
   function loadConfig() {
     var defaults = {
       schemaVersion: 1,
@@ -857,7 +992,9 @@
       nativeMode: "scan",
       strictCatalog: false,
       overlayPanel: true,
-      notify: true
+      notify: true,
+      theme: "auto",
+      customRules: []
     };
     try {
       if (typeof $persistentStore === "undefined" || typeof $persistentStore.read !== "function") {
@@ -867,7 +1004,9 @@
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-      if (parsed.profile === "promo-90p" || parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe") {
+      if (parsed.profile === "promo-90p" || parsed.profile === "hybrid-combo" ||
+          parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
+          parsed.profile === "custom-only") {
         defaults.profile = parsed.profile;
       }
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
@@ -886,6 +1025,10 @@
       if (parsed.strictCatalog === true) defaults.strictCatalog = true;
       if (parsed.overlayPanel === false) defaults.overlayPanel = false;
       if (parsed.notify === false) defaults.notify = false;
+      if (parsed.theme === "dark" || parsed.theme === "light" || parsed.theme === "auto") {
+        defaults.theme = parsed.theme;
+      }
+      defaults.customRules = sanitizeCustomRules(parsed.customRules);
     } catch (error) {
       return defaults;
     }

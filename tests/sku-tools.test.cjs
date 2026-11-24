@@ -794,7 +794,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v1.1");
+  assert.equal(scan.version, "g1-aio-v2.0");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -851,7 +851,9 @@ test("ALL IN ONE_V1 report saves profile, overlayPanel, strictCatalog & nativeMo
     nativeMode: "rewrite",
     strictCatalog: true,
     overlayPanel: true,
-    notify: true
+    notify: true,
+    theme: "auto",
+    customRules: []
   });
 
   // Note: e30tb & overlay omitted in query -> false
@@ -961,4 +963,117 @@ test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC 
       assert.match(content, /DOMAIN,subscriptionsmobile-pa\.googleapis\.com/);
     }
   }
+});
+
+test("ALL IN ONE_V1 v2.0 hybrid-combo, customRules, custom-only and anti-wipe history", () => {
+  // 1. hybrid-combo maps 2TB -> Ultra 1M Free and keeps 20TB/30TB 90p/75p fallback
+  const hybridStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "hybrid-combo", mode: "auto", overlayPanel: false, notify: false
+  })]]);
+  const hybridRes = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([SOURCE, TWENTY, THIRTY, THIRTY_FALLBACK]),
+    storage: hybridStorage
+  });
+  assert.deepEqual(JSON.parse(hybridRes.payload.body), [
+    "g1.ai.ultra.1month_eft.acq",
+    TWENTY_TARGET,
+    THIRTY_FALLBACK,
+    THIRTY_FALLBACK
+  ]);
+
+  // 2. Anti-wipe: subsequent no-match on /ai? preserves lastSuccess and appends recentRewrites
+  const noMatchRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?empty=1",
+    body: "no matching sku on this response",
+    storage: hybridStorage
+  });
+  assert.deepEqual(noMatchRes.payload, {});
+  const testRec = get(hybridStorage, TEST_KEY);
+  assert.equal(testRec.status, "no-match");
+  assert.equal(testRec.hitCount, 0);
+  assert.equal(testRec.lastSuccess.hitCount, 3);
+  assert.equal(testRec.lastSuccess.profile, "hybrid-combo");
+  assert.equal(testRec.lastSuccess.matchedFrom.length, 3);
+  assert.equal(testRec.recentRewrites.length, 2);
+  assert.deepEqual(testRec.recentRewrites.map(r => r.status), ["rewritten", "no-match"]);
+
+  // 3. customRules override profile & custom-only ignores unlisted SKUs
+  const customStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1,
+    profile: "custom-only",
+    mode: "auto",
+    overlayPanel: false,
+    notify: false,
+    customRules: [{ from: "g1.ios.100gb.m", to: "g1.ai.ultra.12months_eft.acq" }]
+  })]]);
+  const customRes = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify(["g1.ios.100gb.m", SOURCE, TWENTY]),
+    storage: customStorage
+  });
+  assert.deepEqual(JSON.parse(customRes.payload.body), [
+    "g1.ai.ultra.12months_eft.acq",
+    SOURCE,
+    TWENTY
+  ]);
+});
+
+test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, import-cfg) & Liquid Glass CSP invariants", () => {
+  const storage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&from=g1.ios.100gb.m&to=g1.ai.ultra.1month_eft.acq",
+    storage
+  });
+  assert.deepEqual(get(storage, CONFIG_KEY).customRules, [
+    { from: "g1.ios.100gb.m", to: "g1.ai.ultra.1month_eft.acq" }
+  ]);
+
+  const badRule = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&from=invalid&to=%3Cscript%3Exss%3C/script%3E",
+    storage
+  });
+  assert.equal(get(storage, CONFIG_KEY).customRules.length, 1);
+  assert(!badRule.payload.response.body.includes("<script>xss"));
+
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=del-rule&from=g1.ios.100gb.m",
+    storage
+  });
+  assert.deepEqual(get(storage, CONFIG_KEY).customRules, []);
+
+  run("g1-sku-report-v1.js", { url: REPORT + "?action=theme&theme=light", storage });
+  assert.equal(get(storage, CONFIG_KEY).theme, "light");
+
+  run("g1-sku-report-v1.js", { url: REPORT + "?action=toggle-overlay", storage });
+  assert.equal(get(storage, CONFIG_KEY).overlayPanel, false);
+
+  const importJson = JSON.stringify({
+    schemaVersion: 1,
+    profile: "hybrid-combo",
+    theme: "dark",
+    strictCatalog: true,
+    untrustedField: "drop-me",
+    customRules: [{ from: "g1.ios.30gb.m", to: "g1.2tb.ai.12months_eft.acq" }]
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=import-cfg&cfg=" + encodeURIComponent(importJson),
+    storage
+  });
+  const importedCfg = get(storage, CONFIG_KEY);
+  assert.equal(importedCfg.profile, "hybrid-combo");
+  assert.equal(importedCfg.theme, "dark");
+  assert.equal(importedCfg.strictCatalog, true);
+  assert.equal(importedCfg.untrustedField, undefined);
+  assert.equal(importedCfg.customRules.length, 1);
+
+  run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
+  const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
+  assert(studioHtml.includes("aio-v2.0"));
+  assert(!studioHtml.includes("linear-gradient"));
+  assert(!studioHtml.includes("radial-gradient"));
+  assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
+
+  const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
+  assert.equal(jsonOut.reportVersion, "aio-v2.0");
+  assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
+  assert.equal(jsonOut.test.recentRewrites.length, 1);
 });

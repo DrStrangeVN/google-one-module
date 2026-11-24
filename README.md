@@ -33,16 +33,18 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
 
-* **Nâng cấp so với bản chính (v1.1 — tích hợp ý tưởng từ `crhywun/g1-acq`, `shelken/proxy`, `xinnyu/g1-acq-surge`, `kawhaiyoung/rule` & `tameruict/gg-ultra-1M`):**
-  * **3 Profile chuyển nhanh trên web báo cáo:**
-    1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p` fallback.
-    2. `ultra-1m-free` (từ `gg-ultra-1M`): Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq` (Ultra 30TB dùng thử miễn phí 1 tháng).
-    3. `ultra-free-probe` (từ `gg-ultra-1M` v3.1): Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft.acq` / `_eft` dài hạn (1/2/3/6/12 tháng).
-  * **Bảng nổi `<details>` ngay trên trang Google App** (`overlayPanel`): Xem nhanh các cặp SKU vừa bị sửa ngay trong WebView không cần chuyển app.
-  * **Chặn QUIC theo domain**: Chỉ chặn `UDP 443` trên `one.google.com` & `subscriptionsmobile-pa.googleapis.com` (không làm chậm HTTP/3 của app khác).
-  * **Ép response thuần & mở rộng URL**: Tự xóa `Accept-Encoding`, `If-None-Match`, `If-Modified-Since`, `Alt-Svc` + giải mã `Uint8Array`; phạm vi mở rộng hỗ trợ `/ai?`, `/upsell`, `/plans`, `/storage`, `batchexecute`.
-  * **Hỗ trợ Native Protobuf (app Google One riêng)**: Bắt và giải mã API `GetDynamicStorefrontInfo` (*Chỉ quét* hoặc *Quét + Ghi đè Protobuf*).
-  * **Strict Catalog & Highlight PROMO**: Tùy chọn chỉ ghi đè khi tài khoản có sẵn mã khuyến mãi + đẩy mã PROMO lên đầu bảng với nút gán 1 chạm.
+* **Nâng cấp so với bản chính (v2.0 Studio — tích hợp kỹ thuật từ `crhywun/g1-acq`, `shelken/proxy`, `xinnyu/g1-acq-surge`, `kawhaiyoung/rule`, `tameruict/gg-ultra-1M`, `tmq9999/quangtesst`, `sulistta/google-one-tools` & `lqvp/google-ai-pro-2y`):**
+  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.0`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
+  * **5 Profile chuyển 1 chạm:**
+    1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p`.
+    2. `hybrid-combo` (Mới): Nút **2TB → `g1.ai.ultra.1month_eft.acq` (Ultra 1T Free)**, đồng thời nút **20TB / 30TB giữ nguyên giảm 90% / 75%**.
+    3. `ultra-1m-free`: Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq`.
+    4. `ultra-free-probe`: Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft` dài hạn (1–12 tháng).
+    5. `custom-only`: Chỉ chạy các **Custom Rules** do bạn tự map.
+  * **Tự Map Nút Bất Kỳ (`Custom Rules`) + Kho 18 SKU Cộng Đồng**: Gán nhanh bất kỳ nút nguồn iOS nào sang bất kỳ SKU Free/Giảm giá/Stacking nào bằng 1 chạm.
+  * **Chống mất log (`Anti-Wipe History`) & Giải mã SKU tiếng Việt**: Lưu riêng `lastSuccess` (không bị ghi đè trắng khi lướt qua trang không có gói) + 10 lần ghi đè gần nhất.
+  * **Thanh nổi Liquid Glass HUD trên Google App** (`overlayPanel`): Xem nhanh các cặp SKU vừa đổi + giải mã ý nghĩa & nút Ẩn nhanh.
+  * **Chặn QUIC theo domain + Ép response thuần + Native Protobuf**: Chỉ chặn `UDP 443` trên 2 domain Google One, xóa `Accept-Encoding` / `ETag` / `Alt-Svc`, giải mã `Uint8Array` và hỗ trợ app Google One riêng.
 * **Link cài đặt `ALL IN ONE_V1`:**
   * **Shadowrocket (`.sgmodule`):**
     ```text
