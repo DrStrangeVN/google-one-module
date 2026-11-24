@@ -1,5 +1,5 @@
 #!name=G1 SKU Scan
-#!desc=Thu thập thụ động mã SKU từ response của one.google.com (giữ nguyên nội dung gốc); xem & xuất báo cáo nội bộ
+#!desc=v7.5.0 (Bản lẻ Backup): Quét thụ động SKU từ one.google.com kèm chẩn đoán 10 response gần nhất (giữ nguyên response gốc); xem & xuất báo cáo nội bộ
 #!system=ios
 
 [Rule]
@@ -8,7 +8,7 @@ AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 
 [Script]
 g1-sku-scan = type=http-response,pattern=^https:\/\/one\.google\.com\/,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-scan.js
-g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
+g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
 
 [MITM]
 hostname = %APPEND% one.google.com

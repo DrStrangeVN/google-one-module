@@ -1,27 +1,58 @@
-/* Local-only report served by a Shadowrocket http-request script. */
+/* Local-only Vietnamese report & All-in-One Control Panel served by Shadowrocket / Loon http-request script. */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
+  var VERSION = "v7.5.0-vi";
+  var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
+  var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
   var TEST_KEY = "g1.pro.annual.test.v1";
+  var CONFIG_KEY = "g1.config.v1";
+  var OTHER_PATH = "[Đường dẫn one.google.com khác]";
+  var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
+  var VALID_SKU = /^g1\.[A-Za-z0-9._-]{1,160}$/;
+  var PRESETS = [
+    { id: "g1.2tb.ai.12months_ip_90p", label: "12 tháng 90p (Mặc định v7.5)" },
+    { id: "g1.2tb.ai.annual", label: "2TB Năm (g1.2tb.ai.annual)" },
+    { id: "g1.2tb.ai.annual_ip_90p.acq", label: "Năm 90p ACQ" },
+    { id: "g1.2tb.ai.3months_ip_90p.acq", label: "3 tháng 90p ACQ" }
+  ];
   var url = typeof $request === "object" && $request ? $request.url : "";
-  if (typeof url !== "string" || !/^https:\/\/one\.google\.com\/g1-sku-report(?:\?|$)/.test(url)) {
+  if (typeof url !== "string" || !/^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?|$)/.test(url)) {
     $done({});
     return;
   }
 
   var storageAvailable = typeof $persistentStore !== "undefined" &&
-    typeof $persistentStore.read === "function";
-  var clearMessage = "";
-  if (/(?:\?|&)clear=1(?:&|$)/.test(url)) {
-    try {
-      var scanCleared = $persistentStore.write("{}", SCAN_KEY);
-      var testCleared = $persistentStore.write("{}", TEST_KEY);
-      clearMessage = scanCleared && testCleared ? "Đã xóa hai bản ghi cục bộ của công cụ." : "Chưa thể xóa hoàn toàn bản ghi cục bộ.";
-    } catch (error) {
-      clearMessage = "Giao diện lưu trữ cục bộ chưa sẵn sàng.";
-    }
+    typeof $persistentStore.read === "function" &&
+    typeof $persistentStore.write === "function";
+  var query = parseQuery(url);
+  var actionMessage = "";
+  var errorMessage = "";
+
+  handleActions();
+
+  function parseQuery(requestUrl) {
+    var result = Object.create(null);
+    var qIndex = requestUrl.indexOf("?");
+    if (qIndex === -1) return result;
+    var queryString = requestUrl.slice(qIndex + 1).split("#")[0];
+    if (!queryString) return result;
+    queryString.split("&").forEach(function (pair) {
+      if (!pair) return;
+      var eqIndex = pair.indexOf("=");
+      var rawKey = eqIndex === -1 ? pair : pair.slice(0, eqIndex);
+      var rawVal = eqIndex === -1 ? "" : pair.slice(eqIndex + 1);
+      try {
+        var key = decodeURIComponent(rawKey.replace(/\+/g, " "));
+        var val = decodeURIComponent(rawVal.replace(/\+/g, " "));
+        result[key] = val;
+      } catch (error) {
+        // Ignore malformed percent-encoded query pairs.
+      }
+    });
+    return result;
   }
 
   function load(key) {
@@ -33,6 +64,134 @@
       return {};
     }
   }
+
+  function loadConfig() {
+    var defaults = {
+      schemaVersion: 1,
+      mode: "auto",
+      target2tb: DEFAULT_TARGET,
+      enable2tb: true,
+      enable20tb: true,
+      enable30tb: true,
+      rewriteScope: "ai",
+      notify: true
+    };
+    var saved = load(CONFIG_KEY);
+    if (saved.mode === "auto" || saved.mode === "scan-only" || saved.mode === "rewrite-only") {
+      defaults.mode = saved.mode;
+    }
+    if (typeof saved.target2tb === "string" && VALID_SKU.test(saved.target2tb)) {
+      defaults.target2tb = saved.target2tb;
+    }
+    if (saved.enable2tb === false) defaults.enable2tb = false;
+    if (saved.enable20tb === false) defaults.enable20tb = false;
+    if (saved.enable30tb === false) defaults.enable30tb = false;
+    if (saved.rewriteScope === "extended") defaults.rewriteScope = "extended";
+    if (saved.notify === false) defaults.notify = false;
+    return defaults;
+  }
+
+  function saveConfig(cfg) {
+    if (!storageAvailable) {
+      errorMessage = "Giao diện lưu trữ cục bộ chưa sẵn sàng.";
+      return false;
+    }
+    try {
+      var ok = $persistentStore.write(JSON.stringify(cfg), CONFIG_KEY);
+      if (!ok) errorMessage = "Không thể ghi cấu hình vào $persistentStore.";
+      return ok;
+    } catch (error) {
+      errorMessage = "Lỗi khi lưu cấu hình cục bộ.";
+      return false;
+    }
+  }
+
+  function handleActions() {
+    if (query.clear) {
+      if (!storageAvailable) {
+        errorMessage = "Giao diện lưu trữ cục bộ chưa sẵn sàng.";
+        return;
+      }
+      try {
+        if (query.clear === "1") {
+          var scanCleared = $persistentStore.write("{}", SCAN_KEY);
+          var testCleared = $persistentStore.write("{}", TEST_KEY);
+          actionMessage = scanCleared && testCleared
+            ? "Đã xóa hai bản ghi quét & test của công cụ (giữ nguyên cấu hình All-in-One)."
+            : "Chưa thể xóa hoàn toàn bản ghi cục bộ.";
+        } else if (query.clear === "scan") {
+          actionMessage = $persistentStore.write("{}", SCAN_KEY)
+            ? "Đã xóa danh sách SKU đã quét."
+            : "Không thể xóa danh sách SKU.";
+        } else if (query.clear === "test") {
+          actionMessage = $persistentStore.write("{}", TEST_KEY)
+            ? "Đã xóa kết quả ghi đè gần nhất."
+            : "Không thể xóa kết quả ghi đè.";
+        } else if (query.clear === "config") {
+          actionMessage = $persistentStore.write("{}", CONFIG_KEY)
+            ? "Đã đặt lại cấu hình All-in-One về mặc định."
+            : "Không thể đặt lại cấu hình.";
+        }
+      } catch (error) {
+        errorMessage = "Giao diện lưu trữ cục bộ chưa sẵn sàng.";
+      }
+      return;
+    }
+
+    if (!query.action) return;
+
+    var cfg = loadConfig();
+    if (query.action === "mode") {
+      if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
+        cfg.mode = query.mode;
+        if (saveConfig(cfg)) {
+          var modeNames = {
+            "auto": "Tự động (Quét + Ghi đè)",
+            "scan-only": "Chỉ quét gốc",
+            "rewrite-only": "Chỉ ghi đè"
+          };
+          actionMessage = "Đã chuyển chế độ sang: " + modeNames[cfg.mode] + ".";
+        }
+      } else {
+        errorMessage = "Chế độ không hợp lệ.";
+      }
+      return;
+    }
+
+    if (query.action === "preset") {
+      var presetTarget = typeof query.target2tb === "string" ? query.target2tb.trim() : "";
+      if (VALID_SKU.test(presetTarget)) {
+        cfg.target2tb = presetTarget;
+        if (saveConfig(cfg)) {
+          actionMessage = "Đã đổi mã đích 2TB sang: " + presetTarget;
+        }
+      } else {
+        errorMessage = "Mã SKU preset không hợp lệ.";
+      }
+      return;
+    }
+
+    if (query.action === "save") {
+      var candidate = typeof query.target2tb === "string" ? query.target2tb.trim() : "";
+      if (!VALID_SKU.test(candidate)) {
+        errorMessage = "Mã SKU 2TB không hợp lệ (phải bắt đầu bằng g1. và chỉ chứa chữ, số, ., _, -). Đã giữ nguyên cấu hình cũ.";
+        return;
+      }
+      cfg.target2tb = candidate;
+      if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
+        cfg.mode = query.mode;
+      }
+      cfg.rewriteScope = query.scope === "extended" ? "extended" : "ai";
+      cfg.enable2tb = query.e2tb === "1";
+      cfg.enable20tb = query.e20tb === "1";
+      cfg.enable30tb = query.e30tb === "1";
+      cfg.notify = query.notify === "1";
+      if (saveConfig(cfg)) {
+        actionMessage = "Đã lưu cấu hình All-in-One.";
+      }
+    }
+  }
+
   function text(value, length) {
     return typeof value === "string" ? value.slice(0, length || 180) : "";
   }
@@ -40,7 +199,10 @@
     var number = Number(value);
     return isFinite(number) && number > 0 ? Math.floor(number) : 0;
   }
-  function rows(value, withTime) {
+  function sku(value) {
+    return typeof value === "string" && VALID_SKU.test(value) ? value : "";
+  }
+  function rows(value, withTime, defaultTarget) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, 300).filter(function (row) {
       return row && typeof row.id === "string" &&
@@ -50,28 +212,82 @@
       if (withTime) {
         out.lastSeen = text(row.lastSeen, 32);
       } else {
-        out.to = typeof row.to === "string" && /^g1\.[A-Za-z0-9._-]{1,160}$/.test(row.to) ?
-          row.to : row.id.indexOf("g1.ios.2tb.") === 0 ? "g1.2tb.ai.annual" : "";
+        out.to = sku(row.to) || (row.id.indexOf("g1.ios.2tb.") === 0 ? defaultTarget || "" : "");
         out.fallback = row.fallback === true;
       }
       return out;
     }).sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
   }
 
+  var scanStatuses = {
+    "new-skus": "Phát hiện & lưu SKU mới",
+    "known-skus": "Đã nhận response, SKU trùng bản ghi cũ",
+    "no-skus": "Response văn bản không chứa mã SKU",
+    "limit-reached": "Có SKU mới nhưng đã đạt giới hạn 300 mã",
+    "non-text": "Response không phải văn bản để quét"
+  };
+  var scanPaths = ["/", "/ai", "/plans", "/_/…/data/batchexecute", OTHER_PATH];
+  function recent(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(-10).filter(function (event) {
+      return event && typeof event.at === "string" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(event.at) &&
+        (event.bodyType === "text" || event.bodyType === "non-text") &&
+        Object.prototype.hasOwnProperty.call(scanStatuses, event.status);
+    }).map(function (event) {
+      var normalizedPath = event.path === LEGACY_OTHER_PATH ? OTHER_PATH : event.path;
+      return {
+        at: event.at,
+        path: scanPaths.indexOf(normalizedPath) !== -1 ? normalizedPath : OTHER_PATH,
+        bodyType: event.bodyType,
+        status: event.status,
+        candidateCount: count(event.candidateCount),
+        addedCount: count(event.addedCount),
+        omittedCount: count(event.omittedCount)
+      };
+    });
+  }
+
+  var currentConfig = loadConfig();
+  var CONFIGURED_TARGET = currentConfig.target2tb;
   var scanRaw = load(SCAN_KEY);
   var testRaw = load(TEST_KEY);
-  var matchedFrom = rows(testRaw.matchedFrom, false);
+  var recordedTarget = sku(testRaw.target);
+  if (!recordedTarget && /^(?:pro-annual-test-v[12]|g1-acq-v7(?:\.0|\.1)?)$/.test(testRaw.version || "")) {
+    recordedTarget = LEGACY_TARGET;
+  }
+  var matchedFrom = rows(testRaw.matchedFrom, false, recordedTarget);
+  if (!recordedTarget) {
+    matchedFrom.some(function (row) {
+      if (row.id.indexOf("g1.ios.2tb.") === 0 && row.to) {
+        recordedTarget = row.to;
+        return true;
+      }
+      return false;
+    });
+  }
   var annualHitCount = typeof testRaw.annualHitCount === "number" ? count(testRaw.annualHitCount) :
     matchedFrom.reduce(function (total, row) {
       return total + (row.id.indexOf("g1.ios.2tb.") === 0 ? row.count : 0);
     }, 0);
+  var storedOrigin = text(testRaw.targetOrigin, 32);
+  var targetOrigin = recordedTarget && /^(?:user-specified|pattern-derived|legacy|custom)$/.test(storedOrigin) ?
+    storedOrigin : recordedTarget === DEFAULT_TARGET ? "user-specified" :
+      recordedTarget === LEGACY_TARGET ? "legacy" : recordedTarget ? "custom" : "";
+
   var report = {
     schemaVersion: 1,
+    reportVersion: VERSION,
+    configuredTarget: CONFIGURED_TARGET,
     storageAvailable: storageAvailable,
+    config: currentConfig,
     scan: {
+      version: text(scanRaw.version, 32),
       updatedAt: text(scanRaw.updatedAt, 32),
       scannedResponses: count(scanRaw.scannedResponses),
       matchedResponses: count(scanRaw.matchedResponses),
+      nonTextResponses: count(scanRaw.nonTextResponses),
+      recentResponses: recent(scanRaw.recentResponses),
       truncated: scanRaw.truncated === true,
       limit: 300,
       skus: rows(scanRaw.skus, true)
@@ -80,7 +296,8 @@
       version: text(testRaw.version, 32),
       updatedAt: text(testRaw.updatedAt, 32),
       sourcePrefix: "g1.ios.2tb.",
-      target: "g1.2tb.ai.annual",
+      target: recordedTarget,
+      targetOrigin: targetOrigin,
       status: text(testRaw.status, 32),
       hitCount: count(testRaw.hitCount),
       annualHitCount: annualHitCount,
@@ -91,10 +308,14 @@
   var headers = {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-store",
+    "X-G1-Report-Version": VERSION,
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
   };
-  if (/(?:\?|&)format=json(?:&|$)/.test(url)) {
+  var exportJSON = query.format === "json";
+  console.log("[g1-sku-report] " + VERSION + " " + (exportJSON ? "json" : "html") +
+    " storage=" + (storageAvailable ? "ready" : "unavailable") + " candidates=" + report.scan.skus.length);
+  if (exportJSON) {
     headers["Content-Type"] = "application/json; charset=utf-8";
     headers["Content-Disposition"] = 'attachment; filename="g1-sku-report.json"';
     $done({ response: { status: 200, headers: headers, body: JSON.stringify(report, null, 2) } });
@@ -116,6 +337,25 @@
             "<td><code>" + escape(row.to || "Chưa ghi nhận") + "</code></td><td>" + (row.fallback ? "75p" : "Không") + "</td>") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
+  function recentTable(events) {
+    if (!events.length) return "<p>Chưa có lịch sử từng response; dữ liệu cũ trước v7.5 chưa có mục chẩn đoán này.</p>";
+    return "<div class=scroll><table><thead><tr><th>Thời gian (UTC)</th><th>Phân loại đường dẫn</th><th>Kết quả</th><th>Mã nhận diện</th><th>Thêm mới</th><th>Ngoài giới hạn</th></tr></thead><tbody>" +
+      events.slice().reverse().map(function (event) {
+        return "<tr><td>" + escape(event.at) + "</td><td>" + escape(event.path) +
+          "</td><td>" + scanStatuses[event.status] + "</td><td>" + event.candidateCount +
+          "</td><td>" + event.addedCount + "</td><td>" + event.omittedCount + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  var latestScan = report.scan.recentResponses.length ?
+    report.scan.recentResponses[report.scan.recentResponses.length - 1] : null;
+  var isCurrentCollector = report.scan.version === "g1-acq-v7.5" ||
+    report.scan.version === "g1-aio-v7.5" ||
+    report.scan.version === "g1-sku-scan-v7.5";
+  var scanVersionStatus = isCurrentCollector ?
+    "Bản ghi từ script thu thập v7.5 hiện tại; đối chiếu thời gian & bộ đếm để kiểm tra response mới." :
+    report.scan.version ? "Bản ghi thu thập bản cũ; chưa lưu lịch sử chẩn đoán v7.5." : "Chưa có bản ghi thu thập từ bản v7.5.";
+
   var statuses = {
     "rewritten": "Đã thực hiện ghi đè chuỗi",
     "no-match": "Response lần này không khớp SKU nguồn nào trong 3 mức",
@@ -126,28 +366,92 @@
   if (report.test.version === "pro-annual-test-v1" && report.test.status === "no-match") {
     status = "Bản ghi v1 cũ: response không khớp tiền tố iOS 2TB";
   }
+
+  var modeOptions = [
+    { id: "auto", label: "Tự động (Quét + Ghi đè)" },
+    { id: "scan-only", label: "Chỉ quét gốc" },
+    { id: "rewrite-only", label: "Chỉ ghi đè" }
+  ];
+  var modeButtons = modeOptions.map(function (item) {
+    var active = currentConfig.mode === item.id ? " active" : "";
+    return "<a class=\"pill" + active + "\" href=\"" + ROOT + "?action=mode&mode=" + item.id + "\">" + item.label + "</a>";
+  }).join("");
+
+  var presetButtons = PRESETS.map(function (preset) {
+    var active = currentConfig.target2tb === preset.id ? " active" : "";
+    return "<a class=\"pill" + active + "\" href=\"" + ROOT + "?action=preset&target2tb=" + encodeURIComponent(preset.id) + "\">" +
+      escape(preset.label) + "</a>";
+  }).join("");
+
   var html = [
     "<!doctype html><html lang=vi><meta charset=utf-8>",
     "<meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Báo cáo Google One SKU nội bộ</title>",
-    "<style>body{font:16px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;max-width:960px;margin:24px auto;padding:0 18px;color:#1c2737;background:#f5f7fa}section{background:white;border:1px solid #dde3ec;border-radius:12px;padding:18px;margin:18px 0}h1{font-size:24px}h2{font-size:20px}code{overflow-wrap:anywhere}a{color:#1259be;margin-right:18px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.scroll{overflow:auto}.note{color:#46556b}button{font:inherit;padding:8px 14px}</style>",
+    "<style>body{font:15px/1.55 -apple-system,BlinkMacSystemFont,sans-serif;max-width:980px;margin:20px auto;padding:0 16px;color:#1c2737;background:#f5f7fa}section{background:white;border:1px solid #dde3ec;border-radius:12px;padding:18px;margin:16px 0}h1{font-size:23px;margin-bottom:8px}h2{font-size:19px;margin-top:0}h3{font-size:16px;margin-bottom:8px}code{overflow-wrap:anywhere;background:#f0f4f9;padding:2px 5px;border-radius:4px}a{color:#1259be}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:8px;border-bottom:1px solid #e3e8f0;text-align:left;vertical-align:top}.scroll{overflow:auto}.note{color:#4b5b70;font-size:14px}.badge{display:inline-block;background:#e0f4e8;color:#176238;padding:4px 10px;border-radius:8px;font-weight:600}.alert{padding:10px 14px;border-radius:8px;margin:12px 0;font-weight:500}.alert-ok{background:#e3f6eb;color:#135d34;border:1px solid #b8e6ca}.alert-err{background:#fdecea;color:#9b2219;border:1px solid #f5c2be}.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0}.actions form{margin:0}button,.actions a,.pill{font:inherit;padding:8px 14px;border:0;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.actions a,.pill{background:#e8eef6;color:#1c2737}.actions button,.btn-primary{background:#1259be;color:white}.pill-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}.pill.active{background:#1259be;color:white;font-weight:600}.grid{display:grid;gap:10px;margin:12px 0}.field label{display:block;font-weight:600;margin-bottom:4px}.field input[type=text],.field select{width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:1px solid #c7d1df;border-radius:8px}.checks{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}.checks label{display:flex;align-items:center;gap:6px;cursor:pointer}.danger{background:#fbe9e7;color:#a5281b}.clear-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}</style>",
     "<h1>Báo cáo Google One SKU nội bộ</h1>",
-    "<p class=note>Trang này được tạo trực tiếp bởi script Shadowrocket trên máy; không gửi dữ liệu ra ngoài.</p>",
-    "<p><a href=\"" + ROOT + "\">Làm mới</a><a href=\"" + ROOT + "?format=json\">Xuất JSON</a></p>",
-    clearMessage ? "<p>" + escape(clearMessage) + "</p>" : "",
-    storageAvailable ? "" : "<p>Giao diện lưu trữ cục bộ chưa sẵn sàng; chưa thể đọc bản ghi.</p>",
+    "<p class=badge>Script nội bộ đang hoạt động · " + VERSION + "</p>",
+    "<nav class=actions aria-label=\"Thao tác báo cáo\"><form method=get action=\"" + ROOT + "\"><button type=submit name=format value=json>Xuất JSON</button></form><a href=\"" + ROOT + "\">Làm mới báo cáo</a></nav>",
+    "<p class=note>Trang này được tạo trực tiếp trên thiết bị bởi Shadowrocket / Loon; toàn bộ dữ liệu nằm trong bộ nhớ cục bộ của máy.</p>",
+    actionMessage ? "<p class=\"alert alert-ok\">" + escape(actionMessage) + "</p>" : "",
+    errorMessage ? "<p class=\"alert alert-err\">" + escape(errorMessage) + "</p>" : "",
+    storageAvailable ? "" : "<p class=\"alert alert-err\">Giao diện lưu trữ cục bộ chưa sẵn sàng; chưa thể đọc hoặc ghi dữ liệu.</p>",
+
+    "<section><h2>Bảng điều khiển All-in-One</h2>",
+    "<p class=note>Áp dụng trực tiếp cho module <strong>G1 All-in-One</strong> mà không cần tắt/bật lại module hay ngắt VPN.</p>",
+    "<h3>Chế độ hoạt động nhanh</h3><div class=pill-row>" + modeButtons + "</div>",
+    "<h3>Chọn nhanh mã đích 2TB</h3><div class=pill-row>" + presetButtons + "</div>",
+    "<form method=get action=\"" + ROOT + "\"><input type=hidden name=action value=save>",
+    "<div class=grid>",
+    "<div class=field><label for=target2tb>Mã SKU đích 2TB tùy chỉnh</label><input id=target2tb type=text name=target2tb value=\"" + escape(currentConfig.target2tb) + "\" placeholder=\"g1.2tb.ai.12months_ip_90p\"></div>",
+    "<div class=field><label for=mode>Chế độ</label><select id=mode name=mode>" +
+      modeOptions.map(function (item) {
+        return "<option value=\"" + item.id + "\"" + (currentConfig.mode === item.id ? " selected" : "") + ">" + item.label + "</option>";
+      }).join("") + "</select></div>",
+    "<div class=field><label for=scope>Phạm vi URL ghi đè</label><select id=scope name=scope>" +
+      "<option value=ai" + (currentConfig.rewriteScope === "ai" ? " selected" : "") + ">Chỉ /ai? (Chuẩn & an toàn)</option>" +
+      "<option value=extended" + (currentConfig.rewriteScope === "extended" ? " selected" : "") + ">Mở rộng (/ai?, /plans, batchexecute)</option>" +
+      "</select></div>",
+    "</div>",
+    "<div class=checks>",
+    "<label><input type=checkbox name=e2tb value=1" + (currentConfig.enable2tb ? " checked" : "") + "> Bật 2TB</label>",
+    "<label><input type=checkbox name=e20tb value=1" + (currentConfig.enable20tb ? " checked" : "") + "> Bật 20TB</label>",
+    "<label><input type=checkbox name=e30tb value=1" + (currentConfig.enable30tb ? " checked" : "") + "> Bật 30TB</label>",
+    "<label><input type=checkbox name=notify value=1" + (currentConfig.notify ? " checked" : "") + "> Thông báo iOS</label>",
+    "</div>",
+    "<button class=btn-primary type=submit>Lưu cấu hình</button></form></section>",
+
+    "<section><h2>Chẩn đoán hoạt động quét</h2>",
+    "<p>Script quét thực tế: <code>" + escape(report.scan.version || "Chưa có bản ghi") + "</code><br>" + scanVersionStatus + "</p>",
+    "<p>Response văn bản đã quét: " + report.scan.scannedResponses + "; Response phi văn bản: " + report.scan.nonTextResponses +
+      "; Response có SKU: " + report.scan.matchedResponses + "; Tổng mã tích lũy: " + report.scan.skus.length + "</p>",
+    "<p>Lưu gần nhất (UTC): " + escape(report.scan.updatedAt || "Chưa có") + "</p>",
+    latestScan ? "<p><strong>Response gần nhất: " + scanStatuses[latestScan.status] + "</strong><br>Nhận diện " +
+      latestScan.candidateCount + " mã khác nhau, thêm mới " + latestScan.addedCount + " mã, bỏ qua do đầy " + latestScan.omittedCount + " mã.</p>" : "",
+    "<h3>10 response gần nhất</h3>", recentTable(report.scan.recentResponses),
+    "<p class=note>Nếu số lượng tăng & trạng thái <code>known-skus</code> nghĩa là đã bắt được response nhưng mã trùng với danh sách cũ. Nếu thời gian & bộ đếm đứng yên hoàn toàn, kiểm tra lại HTTPS Decryption, Skip Proxy và dùng đúng Google App (icon chữ G).</p></section>",
+
     "<section><h2>Lần chạy mapping 3 mức gần nhất</h2>",
-    "<p>Phiên bản: " + escape(report.test.version || "Chưa có") + "<br>Trạng thái: " + escape(status) + "; Tổng số lần thay thế: " + report.test.hitCount + "; Trong đó 2TB: " + report.test.annualHitCount + "</p>",
-    "<p>Tiền tố nguồn 2TB: <code>g1.ios.2tb.</code><br>Đích cố định 2TB: <code>g1.2tb.ai.annual</code><br>20TB / 30TB giữ nguyên mapping ưu đãi cũ &amp; fallback 75p; chi tiết xem bảng dưới.<br>Thời gian chạy (UTC): " + escape(report.test.updatedAt || "Chưa có") + "</p>",
-    "<p class=note>Đây là kết quả thực thi script; việc App Store có nhận diện gói, giá và chu kỳ hay không cần kiểm tra trực tiếp trên bảng thanh toán.</p>",
+    "<p>Mã đích 2TB đang cấu hình: <code>" + escape(CONFIGURED_TARGET) + "</code></p>",
+    "<p>Phiên bản script test: " + escape(report.test.version || "Chưa có") + "<br>Trạng thái: " + escape(status) +
+      "; Tổng số lần thay thế: " + report.test.hitCount + "; Trong đó 2TB: " + report.test.annualHitCount + "</p>",
+    "<p>Tiền tố nguồn 2TB: <code>g1.ios.2tb.</code><br>Mã 2TB đã ghi nhận trong lần chạy này: <code>" + escape(report.test.target || "Chưa ghi nhận") +
+      "</code><br>20TB / 30TB giữ nguyên mapping 90p &amp; fallback 75p độc lập.<br>Thời gian chạy (UTC): " + escape(report.test.updatedAt || "Chưa có") + "</p>",
+    "<p class=note>Đây là kết quả thay thế chuỗi web; tên gói, chu kỳ và giá thực tế phải kiểm tra trên bảng thanh toán App Store.</p>",
     table(report.test.matchedFrom, false), "</section>",
-    "<section><h2>SKU thu thập được khi duyệt trang</h2>",
-    "<p>Số response đã quét: " + report.scan.scannedResponses + "; Response có SKU: " + report.scan.matchedResponses + "; Tổng số mã: " + report.scan.skus.length + "</p>",
-    "<p class=note>Dữ liệu trích từ chuỗi xuất hiện trên các trang one.google.com đã mở, không phải toàn bộ danh mục Store; bộ thu thập giữ nguyên response gốc.</p>",
-    report.scan.truncated ? "<p>Đã đạt giới hạn 300 mã; hãy xóa dữ liệu cũ rồi quét lại trang mục tiêu.</p>" : "",
+
+    "<section><h2>Danh sách SKU thu thập được khi duyệt trang</h2>",
+    "<p>Tổng mã tích lũy: " + report.scan.skus.length + " / 300 (tự động lọc trùng, trích xuất trước khi ghi đè).</p>",
+    report.scan.truncated ? "<p class=\"alert alert-err\">Đã đạt giới hạn 300 mã; hãy xuất JSON rồi xóa danh sách quét trước khi thu thập đợt mới.</p>" : "",
     table(report.scan.skus, true),
-    "<p>Thời gian cập nhật (UTC): " + escape(report.scan.updatedAt || "Chưa có") + "</p></section>",
-    "<form method=get action=\"" + ROOT + "\"><button name=clear value=1>Xóa dữ liệu quét &amp; test của công cụ</button></form>",
-    "<p class=note>Khi quét chỉ bật G1 SKU Scan; khi test chỉ bật G1 ACQ, tắt bộ quét và module G1 Pro Annual Test trùng lặp.</p></html>"
+    "<p>Cập nhật (UTC): " + escape(report.scan.updatedAt || "Chưa có") + "</p></section>",
+
+    "<section><h2>Dọn dữ liệu</h2>",
+    "<p class=note>Các nút dưới đây chỉ xóa dữ liệu của công cụ này trong bộ nhớ cục bộ.</p>",
+    "<div class=clear-row>",
+    "<form method=get action=\"" + ROOT + "\"><button class=danger name=clear value=1>Xóa dữ liệu quét &amp; test</button></form>",
+    "<form method=get action=\"" + ROOT + "\"><button name=clear value=scan>Chỉ xóa danh sách quét</button></form>",
+    "<form method=get action=\"" + ROOT + "\"><button name=clear value=test>Chỉ xóa kết quả test</button></form>",
+    "<form method=get action=\"" + ROOT + "\"><button name=clear value=config>Đặt lại cấu hình All-in-One</button></form>",
+    "</div></section></html>"
   ].join("");
   $done({ response: { status: 200, headers: headers, body: html } });
 })();

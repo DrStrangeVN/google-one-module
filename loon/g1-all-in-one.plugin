@@ -1,0 +1,15 @@
+#!name=G1 All-in-One
+#!desc=v7.5.0 Bản gộp tối ưu: Tự động quét SKU + ghi đè 3 mức + chuyển chế độ & đổi mã 2TB ngay trên web báo cáo + thông báo iOS (chỉ cần bật 1 plugin này)
+#!author=DrStrangeVN
+#!system=ios
+
+[Rule]
+# Chặn UDP 443 để ép HTTP/3 (QUIC) lùi về TCP cho HTTPS Decryption hoạt động.
+AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+
+[Script]
+http-response ^https:\/\/one\.google\.com\/ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one.js, requires-body=true, timeout=10, tag=g1-all-in-one
+http-request ^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js, timeout=10, tag=g1-sku-report
+
+[MITM]
+hostname = one.google.com

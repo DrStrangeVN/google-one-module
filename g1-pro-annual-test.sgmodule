@@ -1,5 +1,5 @@
 #!name=G1 Pro Annual Test
-#!desc=Module tương thích dùng chung script với G1 ACQ; module chính hiện tại là g1-acq-v7.sgmodule (chỉ bật 1 module)
+#!desc=v7.5.0 Bản tương thích: Dùng chung script g1-acq.js (chỉ khớp /ai?, đích 2TB g1.2tb.ai.12months_ip_90p); ưu tiên dùng G1 All-in-One hoặc G1 ACQ
 #!system=ios
 
 [Rule]
@@ -8,7 +8,7 @@ AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 
 [Script]
 g1-pro-annual-test = type=http-response,pattern=^https:\/\/one\.google\.com\/ai\?,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq.js
-g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
+g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
 
 [MITM]
 hostname = %APPEND% one.google.com

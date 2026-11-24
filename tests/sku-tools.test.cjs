@@ -6,10 +6,13 @@ const vm = require("node:vm");
 const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const TARGET = "g1.2tb.ai.annual";
+const TARGET = "g1.2tb.ai.12months_ip_90p";
+const LEGACY_TARGET = "g1.2tb.ai.annual";
 const SCAN_KEY = "g1.sku.scan.v1";
 const TEST_KEY = "g1.pro.annual.test.v1";
+const CONFIG_KEY = "g1.config.v1";
 const REPORT = "https://one.google.com/g1-sku-report";
+const REPORT_VERSION = "v7.5.0-vi";
 // Fixture source IDs test the matching contract; they are not store catalog evidence.
 const SOURCE = "g1.ios.2tb.fixture_monthly";
 const OTHER_SOURCE = "g1.ios.2tb.fixture_annual";
@@ -20,7 +23,7 @@ const THIRTY_TARGET = "g1.ai.ultra.3months_ip_90p.acq";
 const TWENTY_FALLBACK = "g1.20tb.3months_ip_75p.acq";
 const THIRTY_FALLBACK = "g1.ai.ultra.3months_ip_75p.acq";
 const source = Object.fromEntries(
-  ["g1-acq.js", "tests/fixtures/g1-acq-v6.js", "g1-sku-scan.js", "g1-sku-report.js"].map(name =>
+  ["g1-acq.js", "g1-all-in-one.js", "tests/fixtures/g1-acq-v6.js", "g1-sku-scan.js", "g1-sku-report.js"].map(name =>
     [name, fs.readFileSync(path.join(root, name), "utf8")])
 );
 
@@ -30,6 +33,7 @@ function run(name, options = {}) {
   const logs = [];
   const reads = [];
   const writes = [];
+  const notifications = [];
   const context = {
     $request: {
       url: options.url || "https://one.google.com/ai?fixture=1",
@@ -39,6 +43,14 @@ function run(name, options = {}) {
     $done: payload => calls.push(JSON.parse(JSON.stringify(payload))),
     console: { log: value => logs.push(String(value)) }
   };
+  if (options.notificationAvailable !== false) {
+    context.$notification = {
+      post(title, subtitle, message) {
+        if (options.notificationThrows) throw new Error("notification failure");
+        notifications.push({ title, subtitle, message });
+      }
+    };
+  }
   if (options.storageAvailable !== false) {
     context.$persistentStore = {
       read(key) {
@@ -57,7 +69,7 @@ function run(name, options = {}) {
   }
   vm.runInNewContext(source[name], context, { timeout: 2000, filename: name });
   assert.equal(calls.length, 1, "$done must be called once");
-  return { payload: calls[0], storage, logs, reads, writes };
+  return { payload: calls[0], storage, logs, reads, writes, notifications };
 }
 
 function get(storage, key) {
@@ -77,7 +89,7 @@ test("combined module maps 2TB, 20TB and 30TB while preserving unrelated full to
   assert.equal(record.hitCount, 5);
   assert.equal(record.annualHitCount, 3);
   assert.equal(record.status, "rewritten");
-  assert.equal(record.version, "g1-acq-v7");
+  assert.equal(record.version, "g1-acq-v7.5");
   assert.deepEqual(record.matchedFrom, [
     { id: TWENTY, to: TWENTY_TARGET, count: 1, fallback: false },
     { id: OTHER_SOURCE, to: TARGET, count: 1, fallback: false },
@@ -124,16 +136,173 @@ test("fallback decisions are independent and the 2TB target stays fixed", () => 
   assert.deepEqual(rows.find(row => row.id === THIRTY), { id: THIRTY, to: THIRTY_FALLBACK, count: 1, fallback: true });
 });
 
-test("test script accepts only the agreed query-bearing /ai URL", () => {
+test("single module collects other Google pages without changing the last mapping record", () => {
   for (const url of [
     "https://one.google.com/ai", "https://one.google.com/ai/other?x=1",
-    "https://one.google.com/plans?x=1", "https://one.google.com.evil/ai?x=1",
-    "http://one.google.com/ai?x=1"
+    "https://one.google.com/plans?x=1"
+  ]) {
+    const previous = JSON.stringify({ schemaVersion: 1, version: "previous-record", hitCount: 2 });
+    const storage = new Map([[TEST_KEY, previous]]);
+    const result = run("g1-acq.js", { url, body: SOURCE, storage });
+    assert.deepEqual(result.payload, {});
+    assert.equal(storage.get(TEST_KEY), previous);
+    assert.equal(get(storage, SCAN_KEY).skus[0].id, SOURCE);
+  }
+  for (const url of [
+    "https://one.google.com.evil/ai?x=1", "http://one.google.com/ai?x=1",
+    REPORT, REPORT + "?format=json", REPORT + "/", REPORT + "/?format=json"
   ]) {
     const result = run("g1-acq.js", { url, body: SOURCE });
     assert.deepEqual(result.payload, {});
     assert.equal(result.storage.size, 0);
   }
+});
+
+test("single module saves original candidates before rewriting without recording generated targets", () => {
+  const body = JSON.stringify([SOURCE, SOURCE, TWENTY, THIRTY, "com.google.one.fixture"]);
+  const result = run("g1-acq.js", { body });
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TWENTY_TARGET, THIRTY_TARGET, "com.google.one.fixture"]);
+  const scan = get(result.storage, SCAN_KEY);
+  assert.equal(scan.version, "g1-acq-v7.5");
+  assert.deepEqual(scan.skus.map(row => row.id), ["com.google.one.fixture", TWENTY, SOURCE, THIRTY]);
+  assert.equal(scan.skus.find(row => row.id === SOURCE).count, 2);
+  assert.deepEqual(result.writes, [SCAN_KEY, TEST_KEY]);
+});
+
+test("single-module collection decodes discovery copies and continues mapping when the list is full", () => {
+  const escaped = String.raw`g1\u002eios\u002e2tb\u002eescaped`;
+  const decoded = run("g1-acq.js", { body: escaped });
+  assert.deepEqual(decoded.payload, {});
+  assert.equal(get(decoded.storage, SCAN_KEY).skus[0].id, "g1.ios.2tb.escaped");
+  const storage = new Map();
+  const full = Array.from({ length: 305 }, (_, index) => "g1.fixture." + index).join(" ");
+  run("g1-acq.js", { url: "https://one.google.com/plans", body: full, storage });
+  const fullEvent = get(storage, SCAN_KEY).recentResponses.at(-1);
+  assert.equal(fullEvent.status, "new-skus");
+  assert.equal(fullEvent.candidateCount, 305);
+  assert.equal(fullEvent.addedCount, 300);
+  assert.equal(fullEvent.omittedCount, 5);
+  const next = run("g1-acq.js", { body: SOURCE + " g1.fixture.0", storage });
+  assert.equal(next.payload.body, TARGET + " g1.fixture.0");
+  const scan = get(storage, SCAN_KEY);
+  assert.equal(scan.skus.length, 300);
+  assert.equal(scan.truncated, true);
+  assert.equal(scan.scannedResponses, 2);
+  assert.equal(scan.skus.find(row => row.id === "g1.fixture.0").count, 2);
+  assert.equal(scan.recentResponses.at(-1).status, "limit-reached");
+  assert.equal(scan.recentResponses.at(-1).candidateCount, 2);
+  assert.equal(scan.recentResponses.at(-1).addedCount, 0);
+  assert.equal(scan.recentResponses.at(-1).omittedCount, 1);
+});
+
+test("activity distinguishes new IDs, repeated IDs, empty text and nontext responses", () => {
+  const storage = new Map();
+  const url = "https://one.google.com/plans?token=private-token";
+  const body = [SOURCE, SOURCE, OTHER_SOURCE].join(" ");
+  run("g1-acq.js", { url, body, storage });
+  let scan = get(storage, SCAN_KEY);
+  assert.equal(scan.recentResponses[0].status, "new-skus");
+  assert.equal(scan.recentResponses[0].candidateCount, 2);
+  assert.equal(scan.recentResponses[0].addedCount, 2);
+  run("g1-acq.js", { url, body, storage });
+  scan = get(storage, SCAN_KEY);
+  assert.equal(scan.skus.length, 2);
+  assert.equal(scan.skus.find(row => row.id === SOURCE).count, 4);
+  assert.equal(scan.scannedResponses, 2);
+  assert.equal(scan.matchedResponses, 2);
+  assert.equal(scan.recentResponses.at(-1).status, "known-skus");
+  assert.equal(scan.recentResponses.at(-1).candidateCount, 2);
+  assert.equal(scan.recentResponses.at(-1).addedCount, 0);
+  run("g1-acq.js", { url, body: "no product in this response", storage });
+  run("g1-acq.js", { url, body: undefined, storage });
+  scan = get(storage, SCAN_KEY);
+  assert.deepEqual(scan.recentResponses.map(event => event.status), ["new-skus", "known-skus", "no-skus", "non-text"]);
+  assert.equal(scan.scannedResponses, 3);
+  assert.equal(scan.matchedResponses, 2);
+  assert.equal(scan.nonTextResponses, 1);
+  assert.equal(scan.skus.length, 2);
+  assert.equal(scan.recentResponses.at(-1).bodyType, "non-text");
+  assert.equal(scan.recentResponses.at(-1).candidateCount, 0);
+  assert.equal(storage.has(TEST_KEY), false, "non-rewrite pages preserve the mapping record");
+  assert(!storage.get(SCAN_KEY).includes("private-token"));
+  const data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
+  assert.deepEqual(data.scan.recentResponses, scan.recentResponses);
+  assert.equal(data.scan.nonTextResponses, 1);
+  const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
+  assert(html.includes("Script quét thực tế: <code>g1-acq-v7.5</code>"));
+  assert(html.includes("Đã nhận response, SKU trùng bản ghi cũ"));
+  assert(html.includes("Response không phải văn bản để quét"));
+});
+
+test("recent activity keeps ten arrivals and redacts URLs, extra fields and malformed events", () => {
+  const valid = {
+    at: "2099-01-01T00:00:00.000Z", path: "/ai", bodyType: "text", status: "no-skus",
+    candidateCount: 0, addedCount: 0, omittedCount: 0, body: "private-history-body"
+  };
+  const storage = new Map([[SCAN_KEY, JSON.stringify({
+    schemaVersion: 1, recentResponses: [valid, { ...valid, path: "/private-secret" }, { ...valid, status: "bad-status" }]
+  })]]);
+  run("g1-acq.js", { url: "https://one.google.com/plans?secret=1", body: SOURCE, storage });
+  let scan = get(storage, SCAN_KEY);
+  assert.equal(scan.recentResponses.length, 2);
+  assert.equal(scan.recentResponses[0].at, valid.at);
+  assert.equal(scan.recentResponses.at(-1).path, "/plans", "last received event stays last even after a clock change");
+  const paths = ["/", "/ai/", "/plans/", "/_/GoogleOne/account-secret/data/batchexecute", "/account/private@example.test"];
+  const expected = ["/", "/ai", "/plans", "/_/…/data/batchexecute", "[Đường dẫn one.google.com khác]"];
+  for (let index = 0; index < 14; index++) {
+    run("g1-acq.js", { url: "https://one.google.com" + paths[index % 5] + "?secret=query#private-fragment", body: SOURCE, storage });
+  }
+  scan = get(storage, SCAN_KEY);
+  assert.equal(scan.recentResponses.length, 10);
+  assert.deepEqual(scan.recentResponses.map(event => event.path), Array.from({ length: 10 }, (_, index) => expected[(index + 4) % 5]));
+  assert(scan.recentResponses.every(event => event.status === "known-skus" && event.addedCount === 0));
+  for (const forbidden of ["private-history-body", "private-secret", "account-secret", "private@example.test", "query", "private-fragment", "secret="]) {
+    assert(!storage.get(SCAN_KEY).includes(forbidden));
+  }
+});
+
+test("old scan records remain old until an actual response creates a new diagnostic event", () => {
+  const old = {
+    schemaVersion: 1, version: "g1-acq-v7.1", updatedAt: "2026-11-23T07:40:18.464Z",
+    scannedResponses: 5, matchedResponses: 1,
+    skus: [{ id: SOURCE, count: 4, lastSeen: "2026-11-23T07:40:06.325Z" }]
+  };
+  const storage = new Map([[SCAN_KEY, JSON.stringify(old)]]);
+  const before = storage.get(SCAN_KEY);
+  let data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
+  assert.equal(data.scan.version, "g1-acq-v7.1");
+  assert.deepEqual(data.scan.recentResponses, []);
+  assert.equal(data.scan.scannedResponses, 5);
+  assert.equal(storage.get(SCAN_KEY), before);
+  const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
+  assert(html.includes("Bản ghi thu thập bản cũ; chưa lưu lịch sử chẩn đoán v7.5."));
+  run("g1-acq.js", { url: "https://one.google.com/plans", body: SOURCE, storage });
+  data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
+  assert.equal(data.scan.version, "g1-acq-v7.5");
+  assert.equal(data.scan.scannedResponses, 6);
+  assert.equal(data.scan.matchedResponses, 2);
+  assert.equal(data.scan.skus.length, 1);
+  assert.equal(data.scan.skus[0].count, 5);
+  assert.equal(data.scan.recentResponses.length, 1);
+  assert.equal(data.scan.recentResponses[0].status, "known-skus");
+  assert.equal(data.scan.recentResponses[0].addedCount, 0);
+});
+
+test("activity export rejects malformed metadata and excludes untrusted extra fields", () => {
+  const event = {
+    at: "2026-11-23T07:40:06.325Z", path: "/plans", bodyType: "text", status: "known-skus",
+    candidateCount: 2, addedCount: 0, omittedCount: 0, body: "private-body", query: "private-token"
+  };
+  const storage = new Map([[SCAN_KEY, JSON.stringify({
+    schemaVersion: 1, version: "g1-acq-v7.5",
+    recentResponses: [event, { ...event, at: "<script>private</script>" }, { ...event, status: "constructor" }, { ...event, bodyType: "unknown" }]
+  })]]);
+  const result = run("g1-sku-report.js", { url: REPORT + "?format=json", storage });
+  const data = JSON.parse(result.payload.response.body);
+  assert.deepEqual(data.scan.recentResponses, [{
+    at: event.at, path: event.path, bodyType: "text", status: "known-skus", candidateCount: 2, addedCount: 0, omittedCount: 0
+  }]);
+  assert(!result.payload.response.body.includes("private"));
 });
 
 test("storage errors do not prevent a matched response from completing", () => {
@@ -148,7 +317,9 @@ test("test records omit cookies, headers and full response data", () => {
   const saved = result.storage.get(TEST_KEY);
   assert(!saved.includes("private@example.test"));
   assert(!saved.includes("secret"));
-  assert.deepEqual(result.reads, []);
+  assert.deepEqual(result.reads, [SCAN_KEY]);
+  assert(!result.storage.get(SCAN_KEY).includes("private@example.test"));
+  assert(!result.storage.get(SCAN_KEY).includes("secret"));
 });
 
 test("collector discovers IDs and escaped dots while preserving the response", () => {
@@ -158,8 +329,11 @@ test("collector discovers IDs and escaped dots while preserving the response", (
   const result = run("g1-sku-scan.js", { body });
   assert.deepEqual(result.payload, {});
   const state = get(result.storage, SCAN_KEY);
+  assert.equal(state.version, "g1-sku-scan-v7.5");
   assert.equal(state.scannedResponses, 1);
   assert.equal(state.matchedResponses, 1);
+  assert.equal(state.nonTextResponses, 0);
+  assert.equal(state.recentResponses[0].status, "new-skus");
   assert.equal(state.skus.length, 5);
   assert.equal(state.skus.find(row => row.id === SOURCE).count, 2);
   assert(state.skus.some(row => row.id === "g1.ios.2tb.escaped"));
@@ -187,16 +361,25 @@ test("collector bounds stored candidates at 300 and still counts existing IDs", 
   assert.equal(get(result.storage, SCAN_KEY).skus.find(row => row.id === "g1.fixture.0").count, 2);
 });
 
-test("collector skips the local report, other domains and nontext bodies", () => {
+test("collector skips local report & other domains while recording nontext diagnostics", () => {
   for (const options of [
     { url: REPORT, body: SOURCE },
     { url: REPORT + "?format=json", body: SOURCE },
-    { url: "https://one.google.com.evil/ai?x=1", body: SOURCE },
-    { body: undefined }, { body: new Uint8Array([1, 2]) }
+    { url: REPORT + "/", body: SOURCE },
+    { url: REPORT + "/?format=json", body: SOURCE },
+    { url: "https://one.google.com.evil/ai?x=1", body: SOURCE }
   ]) {
     const result = run("g1-sku-scan.js", options);
     assert.deepEqual(result.payload, {});
     assert.equal(result.storage.size, 0);
+  }
+  for (const body of [undefined, new Uint8Array([1, 2])]) {
+    const result = run("g1-sku-scan.js", { body });
+    assert.deepEqual(result.payload, {});
+    const state = get(result.storage, SCAN_KEY);
+    assert.equal(state.nonTextResponses, 1);
+    assert.equal(state.scannedResponses, 0);
+    assert.equal(state.recentResponses[0].status, "non-text");
   }
 });
 
@@ -204,6 +387,77 @@ test("collector passes through on storage failure", () => {
   const result = run("g1-sku-scan.js", { body: SOURCE, storageThrows: true });
   assert.deepEqual(result.payload, {});
   assert(result.logs.some(line => line.includes("saved=no")));
+});
+
+test("all-in-one auto mode scans original candidates, rewrites and posts iOS notification", () => {
+  const body = JSON.stringify([SOURCE, TWENTY, THIRTY]);
+  const result = run("g1-all-in-one.js", { body });
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TWENTY_TARGET, THIRTY_TARGET]);
+  const scan = get(result.storage, SCAN_KEY);
+  const testRec = get(result.storage, TEST_KEY);
+  assert.equal(scan.version, "g1-aio-v7.5");
+  assert.deepEqual(scan.skus.map(r => r.id), [TWENTY, SOURCE, THIRTY]);
+  assert.equal(testRec.version, "g1-aio-v7.5");
+  assert.equal(testRec.hitCount, 3);
+  assert.equal(testRec.annualHitCount, 1);
+  assert.equal(result.notifications.length, 1);
+  assert.equal(result.notifications[0].title, "G1 All-in-One");
+  assert.match(result.notifications[0].subtitle, /Đã ghi đè 3 SKU \(2TB: 1\)/);
+});
+
+test("all-in-one scan-only mode scans & notifies without rewriting body or touching TEST_KEY", () => {
+  const storage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "scan-only", target2tb: TARGET, enable2tb: true, enable20tb: true, enable30tb: true, rewriteScope: "ai", notify: true
+  })]]);
+  const result = run("g1-all-in-one.js", { body: SOURCE, storage });
+  assert.deepEqual(result.payload, {});
+  assert.equal(storage.has(TEST_KEY), false);
+  assert.equal(get(storage, SCAN_KEY).skus[0].id, SOURCE);
+  assert.equal(result.notifications.length, 1);
+  assert.match(result.notifications[0].subtitle, /Phát hiện \+1 SKU mới/);
+});
+
+test("all-in-one rewrite-only mode rewrites without reading or writing SCAN_KEY", () => {
+  const storage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "rewrite-only", target2tb: TARGET, enable2tb: true, enable20tb: true, enable30tb: true, rewriteScope: "ai", notify: false
+  })]]);
+  const result = run("g1-all-in-one.js", { body: SOURCE, storage });
+  assert.equal(result.payload.body, TARGET);
+  assert.equal(storage.has(SCAN_KEY), false);
+  assert.deepEqual(result.reads, [CONFIG_KEY]);
+  assert.equal(result.notifications.length, 0);
+});
+
+test("all-in-one honors custom target2tb, per-tier disables, extended scope and corrupt config", () => {
+  const customCfg = {
+    schemaVersion: 1,
+    mode: "auto",
+    target2tb: "g1.2tb.ai.custom_offer",
+    enable2tb: true,
+    enable20tb: false,
+    enable30tb: false,
+    rewriteScope: "extended",
+    notify: false
+  };
+  const storage = new Map([[CONFIG_KEY, JSON.stringify(customCfg)]]);
+  const body = JSON.stringify([SOURCE, TWENTY, THIRTY]);
+  const plansRes = run("g1-all-in-one.js", { url: "https://one.google.com/plans", body, storage });
+  assert.deepEqual(JSON.parse(plansRes.payload.body), ["g1.2tb.ai.custom_offer", TWENTY, THIRTY]);
+  const batchRes = run("g1-all-in-one.js", { url: "https://one.google.com/_/GoogleOneUi/data/batchexecute?f.sid=1", body, storage });
+  assert.deepEqual(JSON.parse(batchRes.payload.body), ["g1.2tb.ai.custom_offer", TWENTY, THIRTY]);
+  assert.equal(get(storage, TEST_KEY).targetOrigin, "custom");
+  assert.equal(plansRes.notifications.length, 0);
+
+  const disable2tb = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "auto", target2tb: "g1.2tb.ai.custom_offer",
+    enable2tb: false, enable20tb: true, enable30tb: false, rewriteScope: "ai", notify: true
+  })]]);
+  const partialRes = run("g1-all-in-one.js", { body, storage: disable2tb });
+  assert.deepEqual(JSON.parse(partialRes.payload.body), [SOURCE, TWENTY_TARGET, THIRTY]);
+
+  const corrupt = new Map([[CONFIG_KEY, "{not-json"]]);
+  const fallbackRes = run("g1-all-in-one.js", { body: SOURCE, storage: corrupt });
+  assert.equal(fallbackRes.payload.body, TARGET);
 });
 
 test("report displays captured IDs and test sources without external assets", () => {
@@ -215,9 +469,68 @@ test("report displays captured IDs and test sources without external assets", ()
   assert.match(payload.response.body, /Báo cáo Google One SKU nội bộ/);
   assert(payload.response.body.includes(SOURCE));
   assert(payload.response.body.includes(TARGET));
-  assert(payload.response.body.includes("?format=json"));
+  assert(payload.response.body.includes("Script nội bộ đang hoạt động · " + REPORT_VERSION));
+  assert.match(payload.response.body, /<button\b[^>]*name=format[^>]*value=json[^>]*>Xuất JSON<\/button>/);
   assert(!/<(?:script|img|iframe)\b/i.test(payload.response.body));
   assert.equal(payload.response.headers["Cache-Control"], "no-store");
+});
+
+test("report export form resolves to a JSON attachment and supports a trailing slash", () => {
+  const storage = new Map();
+  run("g1-acq.js", { body: SOURCE, storage });
+  const html = run("g1-sku-report.js", { url: REPORT + "/", storage }).payload.response.body;
+  const action = html.match(/<form method=get action="([^"]+)"><button type=submit name=format value=json>/);
+  assert(action, "the visible export button must submit a GET form");
+  const url = new URL(action[1]);
+  url.searchParams.set("format", "json");
+  assert.equal(url.href, REPORT + "?format=json");
+  for (const exportURL of [url.href, REPORT + "/?format=json"]) {
+    const result = run("g1-sku-report.js", { url: exportURL, storage });
+    assert.equal(result.payload.response.status, 200);
+    assert.equal(result.payload.response.headers["Content-Disposition"], 'attachment; filename="g1-sku-report.json"');
+    assert.equal(result.payload.response.headers["X-G1-Report-Version"], REPORT_VERSION);
+    const data = JSON.parse(result.payload.response.body);
+    assert.equal(data.reportVersion, REPORT_VERSION);
+    assert.equal(data.configuredTarget, TARGET);
+    assert.equal(data.config.mode, "auto");
+    assert.equal(data.test.target, TARGET);
+    assert.equal(data.test.targetOrigin, "user-specified");
+    assert.equal(data.scan.skus[0].id, SOURCE);
+    assert.equal(data.test.matchedFrom[0].to, TARGET);
+    assert(result.logs.some(line => line.includes("[g1-sku-report] " + REPORT_VERSION + " json")));
+  }
+});
+
+test("report control panel updates mode, preset, full form and rejects invalid SKUs safely", () => {
+  const storage = new Map();
+  run("g1-sku-report.js", { url: REPORT + "?action=mode&mode=scan-only", storage });
+  assert.equal(get(storage, CONFIG_KEY).mode, "scan-only");
+
+  run("g1-sku-report.js", { url: REPORT + "?action=preset&target2tb=" + LEGACY_TARGET, storage });
+  assert.equal(get(storage, CONFIG_KEY).target2tb, LEGACY_TARGET);
+  assert.equal(get(storage, CONFIG_KEY).mode, "scan-only");
+
+  const saveUrl = REPORT + "?action=save&mode=rewrite-only&target2tb=g1.2tb.ai.custom&scope=extended&e2tb=1&e30tb=1";
+  run("g1-sku-report.js", { url: saveUrl, storage });
+  assert.deepEqual(get(storage, CONFIG_KEY), {
+    schemaVersion: 1,
+    mode: "rewrite-only",
+    target2tb: "g1.2tb.ai.custom",
+    enable2tb: true,
+    enable20tb: false,
+    enable30tb: true,
+    rewriteScope: "extended",
+    notify: false
+  });
+
+  const beforeBad = storage.get(CONFIG_KEY);
+  const badRes = run("g1-sku-report.js", {
+    url: REPORT + "?action=save&target2tb=%3Cscript%3Ebad%3C/script%3E&mode=auto&e2tb=1",
+    storage
+  });
+  assert.equal(storage.get(CONFIG_KEY), beforeBad);
+  assert(!badRes.payload.response.body.includes("<script>bad"));
+  assert(badRes.payload.response.body.includes("Mã SKU 2TB không hợp lệ"));
 });
 
 test("report exports each actual target and separates annual hits from total hits", () => {
@@ -227,7 +540,7 @@ test("report exports each actual target and separates annual hits from total hit
   });
   const result = run("g1-sku-report.js", { url: REPORT + "?format=json", storage });
   const data = JSON.parse(result.payload.response.body).test;
-  assert.equal(data.version, "g1-acq-v7");
+  assert.equal(data.version, "g1-acq-v7.5");
   assert.equal(data.hitCount, 3);
   assert.equal(data.annualHitCount, 1);
   assert.equal(data.matchedFrom.find(row => row.id === TWENTY).to, TWENTY_TARGET);
@@ -251,13 +564,48 @@ test("new report displays existing v1 records with their original 2TB target", (
   assert.equal(data.version, "pro-annual-test-v1");
   assert.equal(data.hitCount, 2);
   assert.equal(data.annualHitCount, 2);
-  assert.deepEqual(data.matchedFrom, [{ id: SOURCE, count: 2, to: TARGET, fallback: false }]);
+  assert.equal(data.target, LEGACY_TARGET);
+  assert.equal(data.targetOrigin, "legacy");
+  assert.deepEqual(data.matchedFrom, [{ id: SOURCE, count: 2, to: LEGACY_TARGET, fallback: false }]);
   storage.set(TEST_KEY, JSON.stringify({
     schemaVersion: 1, version: "pro-annual-test-v1", hitCount: 0,
     status: "no-match", matchedFrom: []
   }));
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
   assert(html.includes("Bản ghi v1 cũ: response không khớp tiền tố iOS 2TB"));
+});
+
+test("report preserves saved v7.1 through v7.4 targets and origins independently of current configuration", () => {
+  for (const prior of [
+    { version: "g1-acq-v7.1", target: LEGACY_TARGET, origin: "legacy" },
+    { version: "g1-acq-v7.2", target: "g1.2tb.ai.annual.3months_ip_90p.acq", origin: "pattern-derived" },
+    { version: "g1-acq-v7.3", target: "g1.2tb.ai.annual_ip_90p.acq", origin: "user-specified" },
+    { version: "g1-acq-v7.4", target: "g1.2tb.ai.annual_ip_90p.acq", origin: "user-specified" }
+  ]) {
+    const record = {
+      schemaVersion: 1, version: prior.version, target: prior.target,
+      status: "rewritten", hitCount: 9, annualHitCount: 9,
+      matchedFrom: [{ id: "g1.ios.2tb.ai.a", to: prior.target, count: 9, fallback: false }]
+    };
+    if (prior.origin !== "legacy") record.targetOrigin = prior.origin;
+    const storage = new Map([[TEST_KEY, JSON.stringify(record)]]);
+    const before = storage.get(TEST_KEY);
+    const data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
+    assert.equal(data.configuredTarget, TARGET);
+    assert.equal(data.test.version, prior.version);
+    assert.equal(data.test.target, prior.target);
+    assert.equal(data.test.targetOrigin, prior.origin);
+    assert.equal(data.test.matchedFrom[0].to, prior.target);
+    assert.equal(storage.get(TEST_KEY), before);
+    const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
+    assert(html.includes("Mã đích 2TB đang cấu hình: <code>" + TARGET + "</code>"));
+    assert(html.includes("Mã 2TB đã ghi nhận trong lần chạy này: <code>" + prior.target + "</code>"));
+  }
+  const empty = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json" }).payload.response.body);
+  assert.equal(empty.configuredTarget, TARGET);
+  assert.equal(empty.test.target, "");
+  assert.equal(empty.test.targetOrigin, "");
+  assert.equal(empty.test.status, "");
 });
 
 test("JSON export is limited to report fields and escapes untrusted HTML text", () => {
@@ -276,17 +624,33 @@ test("JSON export is limited to report fields and escapes untrusted HTML text", 
   assert(htmlResult.payload.response.body.includes("&lt;img src=x&gt;"));
 });
 
-test("clear action affects only the tool's two storage keys", () => {
+test("clear actions affect only the targeted tool keys", () => {
+  const cfg = JSON.stringify({ schemaVersion: 1, mode: "scan-only" });
   const storage = new Map([
     [SCAN_KEY, JSON.stringify({ schemaVersion: 1, skus: [{ id: SOURCE, count: 1 }] })],
     [TEST_KEY, JSON.stringify({ schemaVersion: 1, hitCount: 1 })],
+    [CONFIG_KEY, cfg],
     ["other-tool", "untouched"]
   ]);
-  const result = run("g1-sku-report.js", { url: REPORT + "?clear=1", storage });
+  run("g1-sku-report.js", { url: REPORT + "?clear=1", storage });
   assert.deepEqual(get(storage, SCAN_KEY), {});
   assert.deepEqual(get(storage, TEST_KEY), {});
+  assert.equal(storage.get(CONFIG_KEY), cfg);
   assert.equal(storage.get("other-tool"), "untouched");
-  assert.deepEqual(new Set(result.reads), new Set([SCAN_KEY, TEST_KEY]));
+
+  storage.set(SCAN_KEY, JSON.stringify({ schemaVersion: 1, skus: [{ id: SOURCE, count: 1 }] }));
+  storage.set(TEST_KEY, JSON.stringify({ schemaVersion: 1, hitCount: 1 }));
+  run("g1-sku-report.js", { url: REPORT + "?clear=scan", storage });
+  assert.deepEqual(get(storage, SCAN_KEY), {});
+  assert.equal(get(storage, TEST_KEY).hitCount, 1);
+
+  run("g1-sku-report.js", { url: REPORT + "?clear=test", storage });
+  assert.deepEqual(get(storage, TEST_KEY), {});
+  assert.equal(storage.get(CONFIG_KEY), cfg);
+
+  run("g1-sku-report.js", { url: REPORT + "?clear=config", storage });
+  assert.deepEqual(get(storage, CONFIG_KEY), {});
+  assert.equal(storage.get("other-tool"), "untouched");
 });
 
 test("report handles unavailable storage and skips other URL paths", () => {
@@ -299,35 +663,56 @@ test("report handles unavailable storage and skips other URL paths", () => {
   }
 });
 
-test("the new installer replaces the old entry and all modules share one fixed release", () => {
+test("all Shadowrocket modules and Loon plugins share DrStrangeVN/google-one-module scripts and valid patterns", () => {
   assert.equal(fs.existsSync(path.join(root, "g1-acq.sgmodule")), false);
-  let scriptBase;
-  for (const file of ["g1-acq-v7.sgmodule", "g1-pro-annual-test.sgmodule", "g1-sku-scan.sgmodule"]) {
-    const module = fs.readFileSync(path.join(root, file), "utf8");
-    const scripts = module.split("\n").filter(line => line.includes("script-path="));
-    assert.equal(scripts.length, 2);
-    if (file === "g1-acq-v7.sgmodule") assert.match(module, /^#!name=G1 ACQ$/m);
+  const files = [
+    { file: "g1-all-in-one.sgmodule", type: "shadowrocket", responseScript: "g1-all-in-one.js", broad: true },
+    { file: "g1-acq-v7.sgmodule", type: "shadowrocket", responseScript: "g1-acq.js", broad: true },
+    { file: "g1-pro-annual-test.sgmodule", type: "shadowrocket", responseScript: "g1-acq.js", broad: false },
+    { file: "g1-sku-scan.sgmodule", type: "shadowrocket", responseScript: "g1-sku-scan.js", broad: true },
+    { file: "loon/g1-all-in-one.plugin", type: "loon", responseScript: "g1-all-in-one.js", broad: true },
+    { file: "loon/g1-acq-v7.plugin", type: "loon", responseScript: "g1-acq.js", broad: true },
+    { file: "loon/g1-sku-scan.plugin", type: "loon", responseScript: "g1-sku-scan.js", broad: true }
+  ];
+  const scriptBase = "https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/";
+  for (const entry of files) {
+    const content = fs.readFileSync(path.join(root, entry.file), "utf8");
+    const scripts = content.split("\n").filter(line => line.includes("script-path="));
+    assert.equal(scripts.length, 2, entry.file + " must have 2 script entries");
     for (const script of scripts) {
       const url = script.match(/script-path=([^,\s]+)/)[1];
       assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/DrStrangeVN\/google-one-module\/main\/[a-z0-9.-]+\.js$/);
-      const base = url.slice(0, url.lastIndexOf("/") + 1);
-      if (!scriptBase) scriptBase = base;
-      assert.equal(base, scriptBase);
       assert(fs.existsSync(path.join(root, url.split("/").at(-1))));
     }
-    assert.match(module, /hostname = %APPEND% one\.google\.com/);
-    const responseLine = scripts.find(line => line.includes("type=http-response"));
-    const pattern = new RegExp(responseLine.match(/pattern=([^,]+)/)[1]);
-    assert(pattern.test("https://one.google.com/ai?x=1"));
-    assert(!pattern.test("https://one.google.com.evil/ai?x=1"));
-    assert.equal(pattern.test("https://one.google.com/plans"), file === "g1-sku-scan.sgmodule");
-    if (file !== "g1-sku-scan.sgmodule") {
-      assert(!pattern.test("https://one.google.com/ai"));
-      assert.equal(responseLine.match(/script-path=([^,\s]+)/)[1],
-        scriptBase + "g1-acq.js");
+    if (entry.type === "shadowrocket") {
+      assert.match(content, /hostname = %APPEND% one\.google\.com/);
+    } else {
+      assert.match(content, /^hostname = one\.google\.com$/m);
     }
-    const requestLine = scripts.find(line => line.includes("type=http-request"));
-    assert.equal(requestLine.match(/script-path=([^,\s]+)/)[1],
-      scriptBase + "g1-sku-report.js");
+    const responseLine = scripts.find(line => line.includes("http-response"));
+    const requestLine = scripts.find(line => line.includes("http-request"));
+    const respPatternStr = entry.type === "shadowrocket"
+      ? responseLine.match(/pattern=([^,]+)/)[1]
+      : responseLine.match(/^http-response\s+(\S+)/)[1];
+    const reqPatternStr = entry.type === "shadowrocket"
+      ? requestLine.match(/pattern=([^,]+)/)[1]
+      : requestLine.match(/^http-request\s+(\S+)/)[1];
+
+    assert.equal(responseLine.match(/script-path=([^,\s]+)/)[1], scriptBase + entry.responseScript);
+    assert.equal(requestLine.match(/script-path=([^,\s]+)/)[1], scriptBase + "g1-sku-report.js");
+
+    const respPattern = new RegExp(respPatternStr);
+    assert(respPattern.test("https://one.google.com/ai?x=1"));
+    assert(!respPattern.test("https://one.google.com.evil/ai?x=1"));
+    assert.equal(respPattern.test("https://one.google.com/plans"), entry.broad);
+    assert.equal(respPattern.test("https://one.google.com/ai"), entry.broad);
+
+    const reqPattern = new RegExp(reqPatternStr);
+    for (const url of [REPORT, REPORT + "?format=json", REPORT + "/", REPORT + "/?format=json"]) {
+      assert(reqPattern.test(url));
+    }
+    for (const url of [REPORT + "-other", REPORT + "/other", "https://one.google.com.evil/g1-sku-report"]) {
+      assert(!reqPattern.test(url));
+    }
   }
 });

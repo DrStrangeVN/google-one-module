@@ -1,5 +1,5 @@
 #!name=G1 ACQ
-#!desc=v7.0.0: Test gói năm 2TB + giữ mapping ưu đãi 20TB/30TB & fallback 75p; kèm trang báo cáo nội bộ
+#!desc=v7.5.0 (Bản lẻ Backup): Tự quét SKU + chẩn đoán 10 response gần nhất; test 2TB g1.2tb.ai.12months_ip_90p + mapping ưu đãi 20TB/30TB & fallback 75p; báo cáo nội bộ
 #!system=ios
 
 [Rule]
@@ -7,8 +7,8 @@
 AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 
 [Script]
-g1-acq = type=http-response,pattern=^https:\/\/one\.google\.com\/ai\?,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq.js
-g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
+g1-acq = type=http-response,pattern=^https:\/\/one\.google\.com\/,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq.js
+g1-sku-report = type=http-request,pattern=^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report.js
 
 [MITM]
 hostname = %APPEND% one.google.com
