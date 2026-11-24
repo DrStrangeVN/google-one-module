@@ -304,20 +304,26 @@
     var keys = Object.keys(mappings).sort();
     var rows = keys.map(function (id) {
       var m = mappings[id];
-      return '<div style="margin:2px 0;"><b style="color:#38bdf8;">' + escHtml(m.id) +
-        '</b> → <span style="color:#4ade80;">' + escHtml(m.to) + '</span> (x' + m.count +
-        (m.fallback ? ' · 75p' : '') + ')</div>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;background:rgba(255,255,255,0.06);border-radius:8px;">' +
+        '<div style="min-width:0;word-break:break-all;"><span style="color:#7dd3fc;">' + escHtml(m.id) +
+        '</span><br><span style="color:#4ade80;font-weight:600;">→ ' + escHtml(m.to) + '</span></div>' +
+        '<span style="flex:0 0 auto;background:rgba(74,222,128,0.16);color:#86efac;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">x' + m.count +
+        (m.fallback ? ' · 75p' : '') + '</span></div>';
     });
     var panel =
       '<details style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
-      'background:#0f172a;color:#f8fafc;font-family:-apple-system,monospace;font-size:12px;' +
-      'line-height:1.4;padding:8px 12px;border-bottom:2px solid #4ade80;' +
-      'max-height:55vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.5);">' +
-      '<summary style="font-weight:700;font-size:12px;color:#4ade80;cursor:pointer;">' +
-      escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · Đã ghi đè ' + keys.length + ' mã / ' + hits + ' vị trí — chạm để xem') +
-      '</summary><div style="margin-top:6px;">' + rows.join("") +
-      '<div style="margin-top:6px;"><a href="https://one.google.com/g1-sku-report" style="color:#93c5fd;">Mở Bảng điều khiển & Báo cáo</a></div>' +
-      '</div></details>';
+      'background:rgba(15,23,42,0.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);' +
+      'color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;' +
+      'line-height:1.4;padding:8px 12px;border-bottom:1.5px solid #22c55e;' +
+      'max-height:60vh;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,0.45);">' +
+      '<summary style="font-weight:700;font-size:12px;color:#4ade80;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+      '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">● ' +
+      escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · ' + keys.length + ' mã (' + hits + 'x)') +
+      '</span><span style="flex:0 0 auto;background:rgba(74,222,128,0.18);color:#86efac;padding:2px 8px;border-radius:999px;font-size:11px;">Chi tiết ▾</span>' +
+      '</summary><div style="margin-top:8px;">' + rows.join("") +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' +
+      '<a href="https://one.google.com/g1-sku-report" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:6px 10px;border-radius:8px;font-weight:600;font-size:12px;">Mở Bảng điều khiển & Báo cáo</a>' +
+      '</div></div></details>';
     return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
   }
 
