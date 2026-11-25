@@ -33,18 +33,19 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
 
-* **Nâng cấp so với bản chính (v2.3 Studio — đồng bộ `crhywun/g1-acq` v7.6.0, `Dgkncn/g1-acq-plus` v8.0.0 & `lqvp/google-ai-pro-2y`):**
-  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.3`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
-  * **6 Profile chuyển 1 chạm:**
+* **Nâng cấp so với bản chính (v2.4 Studio — đồng bộ `crhywun/g1-acq` v7.8.0/v7.9.0, `Dgkncn/g1-acq-plus` v8.0.0 & `sku-atlas.md`):**
+  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.4`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
+  * **7 Profile chuyển 1 chạm:**
     1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p`.
-    2. `v7.6-eft` (Theo `crhywun v7.6.0`): 20TB & 30TB ưu tiên **1 tháng Free (`.acq`)** và tự động fallback về `90p` 3 tháng.
-    3. `hybrid-combo`: Nút **2TB → `g1.ai.ultra.1month_eft.acq` (Ultra 1T Free)**, đồng thời nút **20TB / 30TB giữ nguyên giảm 90% / 75%**.
-    4. `ultra-1m-free`: Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq`.
-    5. `ultra-free-probe`: Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft` dài hạn (1–12 tháng).
-    6. `custom-only`: Chỉ chạy các **Custom Rules** do bạn tự map.
+    2. `ultra-75p` (Theo `crhywun v7.8.0`): 20TB & 30TB cố định **3 tháng giảm 75% (trả 25%)** dùng khi `1M Free` / `90p` bị Google khóa.
+    3. `v7.6-eft` (Theo `crhywun v7.6.0`): 20TB & 30TB ưu tiên **1 tháng Free (`.acq`)** và tự động fallback về `90p` 3 tháng.
+    4. `hybrid-combo`: Nút **2TB → `g1.ai.ultra.1month_eft.acq` (Ultra 1T Free)**, đồng thời nút **20TB / 30TB giữ nguyên giảm 90% / 75%**.
+    5. `ultra-1m-free`: Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq`.
+    6. `ultra-free-probe`: Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft` dài hạn (1–12 tháng).
+    7. `custom-only`: Chỉ chạy các **Custom Rules** do bạn tự map.
   * **Bắt đủ cả 2 tiền tố 2TB trên iOS (`g1.ios.2tb.*` & `g1.ios.ai.2tb.*`)**: Không bỏ sót các nút AI 2TB mới trên trang `one.google.com/ai`.
-  * **Custom Rules an toàn & nút Xóa hết 1 chạm**: Mặc định `customRulesOverride = false` nên rule cũ không tự đè sang các Profile khác trừ khi bạn bật tùy chọn trong Cài đặt nâng cao hoặc chọn profile `Chỉ Custom Rules`.
-  * **Kho 24 SKU phân loại `iOS` vs `Play ID` + Chống mất log (`Anti-Wipe History`)**: Bổ sung các mã mới v8.0 (`15months_eft`, `3months_ip_80p`, `1month_ip_95p.acq`, `helium`...) kèm bảng mẹo xử lý lỗi `Purchase not completed` (đổi Gmail phụ sạch / thử qua Gemini, Google One, Gmail, Photos, NotebookLM) và lưu riêng `lastSuccess`.
+  * **Custom Rules chuẩn v7.9.0 (`Exact` / `Prefix`, Bật/Tắt từng rule, 1 chạm `Map rule này`)**: Tối đa 24 rule, nút `Bật/Tắt` không cần xóa, điền sẵn từ tab **Đã Quét**, mặc định `customRulesOverride = false` và nút **Xóa hết** 1 chạm.
+  * **Kho 30 SKU phân loại `AI 2TB` / `iOS` / `Play` + Chống mất log (`Anti-Wipe History`)**: Bổ sung các mã thực tế từ `sku-atlas.md` (`ip_3mo_75p.acq`, `2months_ip_50p`), Pro 10TB, `g1.ai.pro.12months_eft` kèm thẻ **Mẹo xử lý `Purchase not completed`** trong tab **Chẩn Đoán** và lưu riêng `lastSuccess`.
   * **Header ổn định & Không MITM Apple**: Chỉ xóa header nén/cache cơ bản (`Accept-Encoding`, `If-None-Match`, `If-Modified-Since`, `Alt-Svc`) và giải mã riêng `one.google.com`, `subscriptionsmobile-pa.googleapis.com`; tuyệt đối giữ nguyên `*.apple.com` / `*.icloud.com`.
 * **Link cài đặt `ALL IN ONE_V1`:**
   * **Shadowrocket (`.sgmodule`):**
@@ -66,7 +67,7 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 *(Chỉ dùng khi muốn chạy độc lập từng chức năng; luôn tắt các module trùng lặp để tránh chạy đè nhau.)*
 
 * **Shadowrocket (`.sgmodule`):**
-  * **G1 ACQ (v7.6.0 — vừa quét vừa ghi đè):**
+  * **G1 ACQ (v7.8.0 — vừa quét vừa ghi đè cố định 75p):**
     ```text
     https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-acq-v7.sgmodule
     ```
@@ -75,7 +76,7 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
     https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-scan.sgmodule
     ```
 * **Loon (`.plugin`):**
-  * **G1 ACQ (v7.6.0):**
+  * **G1 ACQ (v7.8.0):**
     ```text
     https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-acq-v7.plugin
     ```

@@ -100,17 +100,17 @@ test("combined module maps 2TB, 20TB and 30TB while preserving unrelated full to
   ];
   const values = [SOURCE, OTHER_SOURCE, SOURCE, TWENTY, THIRTY, ...untouched];
   const result = run("g1-acq.js", { body: JSON.stringify(values) });
-  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET, ...untouched]);
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK, ...untouched]);
   const record = get(result.storage, TEST_KEY);
   assert.equal(record.hitCount, 5);
   assert.equal(record.annualHitCount, 3);
   assert.equal(record.status, "rewritten");
-  assert.equal(record.version, "g1-acq-v7.6");
+  assert.equal(record.version, "g1-acq-v7.8");
   assert.deepEqual(record.matchedFrom, [
-    { id: TWENTY, to: V76_TWENTY_TARGET, count: 1, fallback: false },
+    { id: TWENTY, to: TWENTY_FALLBACK, count: 1, fallback: false },
     { id: OTHER_SOURCE, to: TARGET, count: 1, fallback: false },
     { id: SOURCE, to: TARGET, count: 2, fallback: false },
-    { id: THIRTY, to: V76_THIRTY_TARGET, count: 1, fallback: false }
+    { id: THIRTY, to: THIRTY_FALLBACK, count: 1, fallback: false }
   ]);
 });
 
@@ -127,19 +127,19 @@ test("empty responses or responses with no configured sources pass through", () 
   }
 });
 
-test("20TB and 30TB select trial or 90p independently across all sixteen offer combinations (v7.6)", () => {
-  const cases = (target, backup) => [
-    { offers: [], to: target, fallback: false },
-    { offers: [target], to: target, fallback: false },
-    { offers: [backup], to: backup, fallback: true },
-    { offers: [target, backup], to: target, fallback: false }
+test("20TB and 30TB use fixed 75p offers across all offer combinations (v7.8)", () => {
+  const cases = (target, other) => [
+    [],
+    [target],
+    [other],
+    [target, other]
   ];
-  for (const twenty of cases(V76_TWENTY_TARGET, TWENTY_TARGET)) {
-    for (const thirty of cases(V76_THIRTY_TARGET, THIRTY_TARGET)) {
-      const observed = [...twenty.offers, ...thirty.offers];
+  for (const twentyOffers of cases(TWENTY_FALLBACK, TWENTY_TARGET)) {
+    for (const thirtyOffers of cases(THIRTY_FALLBACK, THIRTY_TARGET)) {
+      const observed = [...twentyOffers, ...thirtyOffers];
       const body = JSON.stringify([TWENTY, THIRTY, TWENTY, ...observed]);
       const result = run("g1-acq.js", { body });
-      assert.deepEqual(JSON.parse(result.payload.body), [twenty.to, thirty.to, twenty.to, ...observed]);
+      assert.deepEqual(JSON.parse(result.payload.body), [TWENTY_FALLBACK, THIRTY_FALLBACK, TWENTY_FALLBACK, ...observed]);
       const record = get(result.storage, TEST_KEY);
       assert.equal(record.hitCount, 3);
       assert.equal(record.annualHitCount, 0);
@@ -148,14 +148,14 @@ test("20TB and 30TB select trial or 90p independently across all sixteen offer c
   }
 });
 
-test("fallback decisions are independent and the 2TB target stays fixed (v7.6)", () => {
+test("fixed 75p mapping ignores backup tokens and keeps 2TB target fixed (v7.8)", () => {
   const body = JSON.stringify([SOURCE, TWENTY, THIRTY, V76_TWENTY_TARGET, TWENTY_TARGET, THIRTY_TARGET, THIRTY_FALLBACK]);
   const result = run("g1-acq.js", { body });
-  assert.deepEqual(JSON.parse(result.payload.body).slice(0, 3), [TARGET, V76_TWENTY_TARGET, THIRTY_TARGET]);
+  assert.deepEqual(JSON.parse(result.payload.body).slice(0, 3), [TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK]);
   const rows = get(result.storage, TEST_KEY).matchedFrom;
   assert.deepEqual(rows.find(row => row.id === SOURCE), { id: SOURCE, to: TARGET, count: 1, fallback: false });
-  assert.deepEqual(rows.find(row => row.id === TWENTY), { id: TWENTY, to: V76_TWENTY_TARGET, count: 1, fallback: false });
-  assert.deepEqual(rows.find(row => row.id === THIRTY), { id: THIRTY, to: THIRTY_TARGET, count: 1, fallback: true });
+  assert.deepEqual(rows.find(row => row.id === TWENTY), { id: TWENTY, to: TWENTY_FALLBACK, count: 1, fallback: false });
+  assert.deepEqual(rows.find(row => row.id === THIRTY), { id: THIRTY, to: THIRTY_FALLBACK, count: 1, fallback: false });
 });
 
 test("single module collects other Google pages without changing the last mapping record", () => {
@@ -183,9 +183,9 @@ test("single module collects other Google pages without changing the last mappin
 test("single module saves original candidates before rewriting without recording generated targets", () => {
   const body = JSON.stringify([SOURCE, SOURCE, TWENTY, THIRTY, "com.google.one.fixture"]);
   const result = run("g1-acq.js", { body });
-  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET, "com.google.one.fixture"]);
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK, "com.google.one.fixture"]);
   const scan = get(result.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-acq-v7.6");
+  assert.equal(scan.version, "g1-acq-v7.8");
   assert.deepEqual(scan.skus.map(row => row.id), ["com.google.one.fixture", TWENTY, SOURCE, THIRTY]);
   assert.equal(scan.skus.find(row => row.id === SOURCE).count, 2);
   assert.deepEqual(result.writes, [SCAN_KEY, TEST_KEY]);
@@ -251,7 +251,7 @@ test("activity distinguishes new IDs, repeated IDs, empty text and nontext respo
   assert.deepEqual(data.scan.recentResponses, scan.recentResponses);
   assert.equal(data.scan.nonTextResponses, 1);
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
-  assert(html.includes("Script quét thực tế: <code>g1-acq-v7.6</code>"));
+  assert(html.includes("Script quét thực tế: <code>g1-acq-v7.8</code>"));
   assert(html.includes("Đã nhận response, SKU trùng bản ghi cũ"));
   assert(html.includes("Response không phải văn bản để quét"));
 });
@@ -300,7 +300,7 @@ test("old scan records remain old until an actual response creates a new diagnos
   assert(html.includes("Bản ghi thu thập bản cũ; chưa lưu lịch sử chẩn đoán v7.5."));
   run("g1-acq.js", { url: "https://one.google.com/plans", body: SOURCE, storage });
   data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(data.scan.version, "g1-acq-v7.6");
+  assert.equal(data.scan.version, "g1-acq-v7.8");
   assert.equal(data.scan.scannedResponses, 6);
   assert.equal(data.scan.matchedResponses, 2);
   assert.equal(data.scan.skus.length, 1);
@@ -562,18 +562,18 @@ test("report exports each actual target and separates annual hits from total hit
   });
   const result = run("g1-sku-report.js", { url: REPORT + "?format=json", storage });
   const data = JSON.parse(result.payload.response.body).test;
-  assert.equal(data.version, "g1-acq-v7.6");
+  assert.equal(data.version, "g1-acq-v7.8");
   assert.equal(data.hitCount, 3);
   assert.equal(data.annualHitCount, 1);
-  assert.equal(data.matchedFrom.find(row => row.id === TWENTY).to, V76_TWENTY_TARGET);
+  assert.equal(data.matchedFrom.find(row => row.id === TWENTY).to, TWENTY_FALLBACK);
   assert.deepEqual(data.matchedFrom.find(row => row.id === THIRTY), {
-    id: THIRTY, count: 1, to: THIRTY_TARGET, fallback: true
+    id: THIRTY, count: 1, to: THIRTY_FALLBACK, fallback: false
   });
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
   assert(html.includes("Lần chạy mapping 3 mức gần nhất"));
   assert(html.includes("Trong đó 2TB: 1"));
-  assert(html.includes(V76_TWENTY_TARGET));
-  assert(html.includes(THIRTY_TARGET));
+  assert(html.includes(TWENTY_FALLBACK));
+  assert(html.includes(THIRTY_FALLBACK));
 });
 
 test("new report displays existing v1 records with their original 2TB target", () => {
@@ -802,7 +802,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.3");
+  assert.equal(scan.version, "g1-aio-v2.4");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1033,7 +1033,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
     storage
   });
   assert.deepEqual(get(storage, CONFIG_KEY).customRules, [
-    { from: "g1.ios.100gb.m", to: "g1.ai.ultra.1month_eft.acq" }
+    { from: "g1.ios.100gb.m", to: "g1.ai.ultra.1month_eft.acq", match: "exact", enabled: true }
   ]);
 
   const badRule = run("g1-sku-report-v1.js", {
@@ -1076,20 +1076,85 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.3"));
+  assert(studioHtml.includes("aio-v2.4"));
+  assert(studioHtml.includes("Kho SKU Cộng Đồng (30 mã chuẩn"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
   assert(studioHtml.includes("g1.20tb.3months_ip_80p"));
   assert(studioHtml.includes("g1.helium.12months_ip_90p"));
+  assert(studioHtml.includes("g1.ai.pro.12months_eft"));
+  assert(studioHtml.includes("g1.ios.ai.2tb.m.ip_3mo_75p.acq"));
+  assert(studioHtml.includes("g1.10tb.1month_ip_90p"));
   assert(studioHtml.includes("Purchase not completed"));
+  assert(studioHtml.includes("Ultra 75p cố định (v7.8)"));
   assert(studioHtml.includes("NotebookLM"));
   assert(!studioHtml.includes("linear-gradient"));
   assert(!studioHtml.includes("radial-gradient"));
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.3");
+  assert.equal(jsonOut.reportVersion, "aio-v2.4");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
+});
+
+test("ALL IN ONE_V1 v2.4 supports ultra-75p profile, Prefix/Exact toggleable Custom Rules, prefillFrom & Scanned badges", () => {
+  const AI_2TB = "g1.ios.ai.2tb.m.ip_1mo_90p.acq";
+  // 1. ultra-75p maps 20TB/30TB directly to 75p (no fallback even when 90p tokens exist)
+  const v78Storage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "ultra-75p", mode: "auto", overlayPanel: false, notify: false
+  })]]);
+  const v78Res = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB, TWENTY, THIRTY, TWENTY_TARGET, THIRTY_TARGET]),
+    storage: v78Storage
+  });
+  assert.deepEqual(JSON.parse(v78Res.payload.body).slice(0, 3), [TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK]);
+  assert.equal(get(v78Storage, TEST_KEY).matchedFrom.every(row => row.fallback === false), true);
+
+  // 2. Custom Rules: prefix + exact precedence + toggle-rule
+  const crStorage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=custom-only",
+    storage: crStorage
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&match=prefix&fromCustom=g1.ios.ai.2tb.&to=g1.2tb.ai.2months_ip_50p",
+    storage: crStorage
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&match=exact&fromCustom=" + encodeURIComponent(AI_2TB) + "&to=g1.ai.ultra.3months_ip_75p.acq",
+    storage: crStorage
+  });
+  const crResBoth = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB, "g1.ios.ai.2tb.a.ip_1yr_10p.acq"]),
+    storage: crStorage
+  });
+  assert.deepEqual(JSON.parse(crResBoth.payload.body), [
+    "g1.ai.ultra.3months_ip_75p.acq",
+    "g1.2tb.ai.2months_ip_50p"
+  ]);
+
+  // Toggle exact rule OFF -> falls back to enabled prefix rule
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=toggle-rule&match=exact&from=" + encodeURIComponent(AI_2TB),
+    storage: crStorage
+  });
+  const toggledRule = get(crStorage, CONFIG_KEY).customRules.find(r => r.from === AI_2TB);
+  assert.equal(toggledRule.enabled, false);
+  const crResAfterToggle = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB]),
+    storage: crStorage
+  });
+  assert.deepEqual(JSON.parse(crResAfterToggle.payload.body), ["g1.2tb.ai.2months_ip_50p"]);
+
+  // 3. prefillFrom + Scanned badges (AI 2TB badge + Map rule này button)
+  const prefillHtml = run("g1-sku-report-v1.js", {
+    url: REPORT + "?prefillFrom=" + encodeURIComponent(AI_2TB) + "&tab=studio",
+    storage: v78Storage
+  }).payload.response.body;
+  assert(prefillHtml.includes('value="' + AI_2TB + '"'));
+  assert(prefillHtml.includes("AI 2TB"));
+  assert(prefillHtml.includes("Map rule này"));
+  assert(prefillHtml.includes("prefillFrom=" + encodeURIComponent(AI_2TB)));
 });
 
 test("ALL IN ONE_V1 v2.3 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, safe v2.0 headers, and safe customRules override", () => {

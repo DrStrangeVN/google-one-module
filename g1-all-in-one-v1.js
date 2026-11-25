@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.3 Studio): 6 Profiles (incl. v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, safe Custom Rules override, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.4 Studio): 7 Profiles (incl. Ultra 75p, v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, Prefix/Exact toggleable Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.3";
+  var VERSION = "g1-aio-v2.4";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -22,6 +22,10 @@
     "g1.20tb.1month_eft.acq": "g1.20tb.3months_ip_90p.acq",
     "g1.ai.ultra.1month_eft.acq": "g1.ai.ultra.3months_ip_90p.acq"
   };
+  var V78_SKU_MAP = {
+    "g1.ios.20tb.m.v2": "g1.20tb.3months_ip_75p.acq",
+    "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.3months_ip_75p.acq"
+  };
   var PROBE_MAP = {
     "g1.ios.30gb.m": "g1.ai.ultra.3months_eft.acq",
     "g1.ios.100gb.m": "g1.ai.ultra.6months_eft.acq",
@@ -40,7 +44,7 @@
   var SCAN_KEY = "g1.sku.scan.v1";
   var SCAN_LIMIT = 300;
   var RECENT_LIMIT = 10;
-  var MAX_CUSTOM_RULES = 12;
+  var MAX_CUSTOM_RULES = 24;
   var MAX_EVENT_COUNT = 9007199254740991;
   var MAX_PROTO_BODY = 2 * 1024 * 1024;
   var MAX_PROTO_FIELDS = 50000;
@@ -49,6 +53,7 @@
   var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
   var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
   var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
+  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,159}\.$/;
   var url = typeof $request === "object" && $request ? $request.url : "";
 
   if (typeof url !== "string") {
@@ -268,11 +273,20 @@
     var is2tb = is2tbSource(id);
 
     // Priority 1: User-defined custom rules apply only in "custom-only" profile
-    // or when customRulesOverride is explicitly enabled.
+    // or when customRulesOverride is explicitly enabled. Exact rules run before prefix rules.
     if (cfg.profile === "custom-only" || cfg.customRulesOverride === true) {
-      for (var i = 0; i < cfg.customRules.length; i++) {
-        if (cfg.customRules[i].from === id) {
-          return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+      var i;
+      for (i = 0; i < cfg.customRules.length; i++) {
+        var rExact = cfg.customRules[i];
+        if (rExact.enabled !== false && rExact.match !== "prefix" && rExact.from === id) {
+          return { to: rExact.to, fallback: false, is2tb: is2tb };
+        }
+      }
+      for (i = 0; i < cfg.customRules.length; i++) {
+        var rPrefix = cfg.customRules[i];
+        if (rPrefix.enabled !== false && rPrefix.match === "prefix" &&
+            id.indexOf(rPrefix.from) === 0 && id.length > rPrefix.from.length) {
+          return { to: rPrefix.to, fallback: false, is2tb: is2tb };
         }
       }
     }
@@ -295,9 +309,10 @@
       return null;
     }
 
+    var useV78 = cfg.profile === "ultra-75p";
     var useV76 = cfg.profile === "v7.6-eft";
-    var mapTable = useV76 ? V76_SKU_MAP : SKU_MAP;
-    var fbTable = useV76 ? V76_FALLBACK : FALLBACK;
+    var mapTable = useV78 ? V78_SKU_MAP : useV76 ? V76_SKU_MAP : SKU_MAP;
+    var fbTable = useV78 ? Object.create(null) : useV76 ? V76_FALLBACK : FALLBACK;
 
     var to;
     var fallback = false;
@@ -327,8 +342,10 @@
   function describeSku(id) {
     var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
       /20tb/i.test(id) ? "Ultra 20TB" :
+      /10tb/i.test(id) ? "Pro 10TB" :
       /5tb/i.test(id) ? "AI Pro 5TB" :
       /2tb/i.test(id) ? "AI Pro 2TB" :
+      /ai\.pro/i.test(id) ? "AI Pro" :
       /helium/i.test(id) ? "AI Plus 400GB" :
       /200gb/i.test(id) ? "200GB" :
       /100gb/i.test(id) ? "100GB" :
@@ -989,11 +1006,14 @@
     for (var i = 0; i < rawRules.length && out.length < MAX_CUSTOM_RULES; i++) {
       var item = rawRules[i];
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      var match = item.match === "prefix" ? "prefix" : "exact";
       var from = typeof item.from === "string" ? item.from.trim() : "";
       var to = typeof item.to === "string" ? item.to.trim() : "";
-      if (!VALID_TOKEN.test(from) || !VALID_TOKEN.test(to) || from === to || seen[from]) continue;
-      seen[from] = true;
-      out.push({ from: from, to: to });
+      var fromValid = match === "prefix" ? VALID_PREFIX.test(from) : VALID_TOKEN.test(from);
+      var key = match + ":" + from;
+      if (!fromValid || !VALID_TOKEN.test(to) || from === to || seen[key]) continue;
+      seen[key] = true;
+      out.push({ from: from, to: to, match: match, enabled: item.enabled !== false });
     }
     return out;
   }
@@ -1024,9 +1044,10 @@
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-      if (parsed.profile === "promo-90p" || parsed.profile === "v7.6-eft" ||
-          parsed.profile === "hybrid-combo" || parsed.profile === "ultra-1m-free" ||
-          parsed.profile === "ultra-free-probe" || parsed.profile === "custom-only") {
+      if (parsed.profile === "promo-90p" || parsed.profile === "ultra-75p" ||
+          parsed.profile === "v7.6-eft" || parsed.profile === "hybrid-combo" ||
+          parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
+          parsed.profile === "custom-only") {
         defaults.profile = parsed.profile;
       }
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {

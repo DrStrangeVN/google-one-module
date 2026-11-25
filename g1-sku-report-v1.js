@@ -1,24 +1,26 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.3). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.4). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.3";
+  var VERSION = "aio-v2.4";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
   var TEST_KEY = "g1.pro.annual.test.v1";
   var CONFIG_KEY = "g1.config.v1";
-  var MAX_CUSTOM_RULES = 12;
+  var MAX_CUSTOM_RULES = 24;
   var OTHER_PATH = "[Đường dẫn one.google.com khác]";
   var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
   var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
   var VALID_SKU = /^g1\.[A-Za-z0-9._-]{1,160}$/;
   var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
+  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,159}\.$/;
 
   var PRESETS = [
     { id: "g1.2tb.ai.12months_ip_90p", label: "12T Giảm 90% (v7.5)" },
     { id: "g1.ai.ultra.1month_eft.acq", label: "Ultra 30TB · 1T Free" },
+    { id: "g1.ai.ultra.3months_ip_75p.acq", label: "Ultra 30TB · 3T 75p" },
     { id: "g1.20tb.1month_eft.acq", label: "Ultra 20TB · 1T Free" },
     { id: "g1.2tb.ai.12months_eft.acq", label: "Pro 12T Free (.acq)" },
     { id: "g1.2tb.ai.18months_eft", label: "Pro 18T Free (Play)" }
@@ -57,6 +59,7 @@
         { id: "g1.20tb.3months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "Ultra 20TB · 3 tháng miễn phí" },
         { id: "g1.20tb.12months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "Ultra 20TB · 12 tháng miễn phí" },
         { id: "g1.2tb.ai.12months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "AI Pro · 12 tháng miễn phí" },
+        { id: "g1.ai.pro.12months_eft", tag: "THỬ 12T 0đ", cls: "st-ok", note: "AI Pro / Ultra · 12 tháng miễn phí (thử nghiệm xinnyu)" },
         { id: "g1.2tb.ai.18months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 18 tháng (Android Play ID, không có .acq)" },
         { id: "g1.2tb.ai.15months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 15 tháng 0đ (Android Play ID, mới v8.0)" },
         { id: "g1.2tb.ai.12months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 12 tháng 0đ (Android Play ID, không .acq)" },
@@ -64,7 +67,7 @@
       ]
     },
     {
-      title: "iOS & Play · Intro Price Giảm 75% – 95% (_ip_)",
+      title: "iOS & Play · Intro Price Giảm 50% – 95% (_ip_)",
       items: [
         { id: "g1.2tb.ai.12months_ip_90p", tag: "GIẢM 90%", cls: "st-info", note: "AI Pro · 12 tháng giảm 90% (v7.5/v7.6)" },
         { id: "g1.20tb.3months_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 90%" },
@@ -72,8 +75,13 @@
         { id: "g1.20tb.3months_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "Ultra 20TB · 3 tháng giảm 75%" },
         { id: "g1.ai.ultra.3months_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "Ultra 30TB · 3 tháng giảm 90%" },
         { id: "g1.ai.ultra.3months_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "Ultra 30TB · 3 tháng giảm 75%" },
+        { id: "g1.ios.ai.2tb.m.ip_3mo_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "AI 2TB · 3 tháng giảm 75% (sku-atlas thực tế)" },
+        { id: "g1.ios.helium.m.3month_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "AI Plus 400GB · 3 tháng giảm 75% (sku-atlas thực tế)" },
+        { id: "g1.2tb.ai.2months_ip_50p", tag: "GIẢM 50%", cls: "st-info", note: "AI Pro · 2 tháng giảm 50% (sku-atlas thực tế)" },
         { id: "g1.2tb.ai.1month_ip_95p.acq", tag: "iOS · GIẢM 95%", cls: "st-info", note: "AI Pro · Tháng đầu giảm 95% (khách mới)" },
-        { id: "g1.helium.12months_ip_90p", tag: "Play ID", cls: "st-warn", note: "AI Plus 400GB · 12 tháng giảm 90% (Android Play ID)" }
+        { id: "g1.helium.12months_ip_90p", tag: "Play ID", cls: "st-warn", note: "AI Plus 400GB · 12 tháng giảm 90% (Android Play ID)" },
+        { id: "g1.10tb.1month_ip_90p", tag: "Play ID · 90%", cls: "st-warn", note: "Pro 10TB · 1 tháng giảm 90% (Android Play)" },
+        { id: "g1.10tb.3months_ip_85p", tag: "Play ID · 85%", cls: "st-warn", note: "Pro 10TB · 3 tháng giảm 85% (Android Play)" }
       ]
     },
     {
@@ -98,9 +106,19 @@
   var query = parseQuery(url);
   var actionMessage = "";
   var errorMessage = "";
+  var prefillFrom = "";
+  if (typeof query.prefillFrom === "string") {
+    var candFrom = query.prefillFrom.trim();
+    if (VALID_TOKEN.test(candFrom) || VALID_PREFIX.test(candFrom)) {
+      prefillFrom = candFrom;
+    }
+  }
   var activeTab = resolveInitialTab();
 
   handleActions();
+  if (!actionMessage && !errorMessage && prefillFrom) {
+    actionMessage = "Đã điền sẵn mã nguồn vào Custom Rule bên dưới: " + prefillFrom;
+  }
 
   function resolveInitialTab() {
     var t = query.tab;
@@ -149,11 +167,14 @@
     for (var i = 0; i < rawRules.length && out.length < MAX_CUSTOM_RULES; i++) {
       var item = rawRules[i];
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      var match = item.match === "prefix" ? "prefix" : "exact";
       var from = typeof item.from === "string" ? item.from.trim() : "";
       var to = typeof item.to === "string" ? item.to.trim() : "";
-      if (!VALID_TOKEN.test(from) || !VALID_TOKEN.test(to) || from === to || seen[from]) continue;
-      seen[from] = true;
-      out.push({ from: from, to: to });
+      var fromValid = match === "prefix" ? VALID_PREFIX.test(from) : VALID_TOKEN.test(from);
+      var key = match + ":" + from;
+      if (!fromValid || !VALID_TOKEN.test(to) || from === to || seen[key]) continue;
+      seen[key] = true;
+      out.push({ from: from, to: to, match: match, enabled: item.enabled !== false });
     }
     return out;
   }
@@ -177,9 +198,10 @@
       customRulesOverride: false
     };
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-    if (parsed.profile === "promo-90p" || parsed.profile === "v7.6-eft" ||
-        parsed.profile === "hybrid-combo" || parsed.profile === "ultra-1m-free" ||
-        parsed.profile === "ultra-free-probe" || parsed.profile === "custom-only") {
+    if (parsed.profile === "promo-90p" || parsed.profile === "ultra-75p" ||
+        parsed.profile === "v7.6-eft" || parsed.profile === "hybrid-combo" ||
+        parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
+        parsed.profile === "custom-only") {
       defaults.profile = parsed.profile;
     }
     if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
@@ -261,13 +283,15 @@
 
     var cfg = loadConfig();
     if (query.action === "profile") {
-      if (query.profile === "promo-90p" || query.profile === "v7.6-eft" ||
-          query.profile === "hybrid-combo" || query.profile === "ultra-1m-free" ||
-          query.profile === "ultra-free-probe" || query.profile === "custom-only") {
+      if (query.profile === "promo-90p" || query.profile === "ultra-75p" ||
+          query.profile === "v7.6-eft" || query.profile === "hybrid-combo" ||
+          query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe" ||
+          query.profile === "custom-only") {
         cfg.profile = query.profile;
         if (saveConfig(cfg)) {
           var pNames = {
             "promo-90p": "Promo 90p / 75p (v7.5)",
+            "ultra-75p": "Ultra 75p cố định (v7.8)",
             "v7.6-eft": "Ultra 1M Free + Fallback 90p (v7.6)",
             "hybrid-combo": "Combo 2TB Free + 20/30TB 90p",
             "ultra-1m-free": "Ultra 30TB · 1M Free (Mọi nút)",
@@ -333,33 +357,61 @@
     }
 
     if (query.action === "add-rule") {
+      var matchType = query.match === "prefix" ? "prefix" : "exact";
       var fromSku = typeof query.fromCustom === "string" && query.fromCustom.trim()
         ? query.fromCustom.trim()
         : typeof query.from === "string" ? query.from.trim() : "";
       var toSku = typeof query.to === "string" ? query.to.trim() : "";
-      if (!VALID_TOKEN.test(fromSku) || !VALID_TOKEN.test(toSku) || fromSku === toSku) {
-        errorMessage = "Rule tùy chỉnh không hợp lệ (mã nguồn và mã đích phải là mã SKU hợp lệ và khác nhau).";
+      var fromOk = matchType === "prefix" ? VALID_PREFIX.test(fromSku) : VALID_TOKEN.test(fromSku);
+      if (!fromOk || !VALID_TOKEN.test(toSku) || fromSku === toSku) {
+        errorMessage = matchType === "prefix"
+          ? "Rule tiền tố (Prefix) không hợp lệ: nguồn phải bắt đầu bằng g1. và kết thúc bằng dấu chấm (VD: g1.ios.ai.2tb.), đích phải là mã SKU đầy đủ."
+          : "Rule tùy chỉnh không hợp lệ (mã nguồn và mã đích phải là mã SKU hợp lệ và khác nhau).";
         return;
       }
-      var updatedRules = cfg.customRules.filter(function (r) { return r.from !== fromSku; });
+      var updatedRules = cfg.customRules.filter(function (r) {
+        return !((r.match || "exact") === matchType && r.from === fromSku);
+      });
       if (updatedRules.length >= MAX_CUSTOM_RULES) {
         errorMessage = "Đã đạt tối đa " + MAX_CUSTOM_RULES + " rule tùy chỉnh; hãy xóa bớt trước khi thêm mới.";
         return;
       }
-      updatedRules.push({ from: fromSku, to: toSku });
+      updatedRules.push({ from: fromSku, to: toSku, match: matchType, enabled: true });
       cfg.customRules = updatedRules;
       if (saveConfig(cfg)) {
         var ruleActive = cfg.profile === "custom-only" || cfg.customRulesOverride;
-        actionMessage = "Đã lưu Custom Rule: " + fromSku + " → " + toSku +
+        actionMessage = "Đã lưu Custom Rule (" + (matchType === "prefix" ? "Prefix" : "Exact") + "): " +
+          fromSku + " → " + toSku +
           (ruleActive ? " (đang áp dụng)." : " (chờ: bật 'Ưu tiên Custom Rules đè Profile' trong Cài đặt nâng cao hoặc chọn profile 'Chỉ Custom Rules').");
+      }
+      return;
+    }
+
+    if (query.action === "toggle-rule") {
+      var togFrom = typeof query.from === "string" ? query.from.trim() : "";
+      var togMatch = query.match === "prefix" ? "prefix" : "exact";
+      var toggledState = null;
+      cfg.customRules = cfg.customRules.map(function (r) {
+        if (r.from === togFrom && (r.match || "exact") === togMatch) {
+          toggledState = r.enabled === false;
+          return { from: r.from, to: r.to, match: r.match || "exact", enabled: toggledState };
+        }
+        return r;
+      });
+      if (toggledState !== null && saveConfig(cfg)) {
+        actionMessage = (toggledState ? "Đã bật" : "Đã tắt") + " Custom Rule cho: " + togFrom + ".";
       }
       return;
     }
 
     if (query.action === "del-rule") {
       var removeFrom = typeof query.from === "string" ? query.from.trim() : "";
+      var hasMatch = query.match === "prefix" || query.match === "exact";
+      var delMatch = query.match === "prefix" ? "prefix" : "exact";
       var beforeLen = cfg.customRules.length;
-      cfg.customRules = cfg.customRules.filter(function (r) { return r.from !== removeFrom; });
+      cfg.customRules = cfg.customRules.filter(function (r) {
+        return !(r.from === removeFrom && (!hasMatch || (r.match || "exact") === delMatch));
+      });
       if (cfg.customRules.length < beforeLen && saveConfig(cfg)) {
         actionMessage = "Đã xóa Custom Rule cho: " + removeFrom + ".";
       }
@@ -403,9 +455,10 @@
         return;
       }
       cfg.target2tb = candidate;
-      if (query.profile === "promo-90p" || query.profile === "v7.6-eft" ||
-          query.profile === "hybrid-combo" || query.profile === "ultra-1m-free" ||
-          query.profile === "ultra-free-probe" || query.profile === "custom-only") {
+      if (query.profile === "promo-90p" || query.profile === "ultra-75p" ||
+          query.profile === "v7.6-eft" || query.profile === "hybrid-combo" ||
+          query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe" ||
+          query.profile === "custom-only") {
         cfg.profile = query.profile;
       }
       if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
@@ -439,13 +492,15 @@
     return typeof value === "string" && VALID_SKU.test(value) ? value : "";
   }
   function isPromoSku(id) {
-    return /(?:acq|_90p|_85p|_83p|_75p|_eft|subs_variant|12months|annual|3months|6months|2months|1month)/i.test(id);
+    return /(?:acq|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_25p|_10p|_ip\.|_eft|subs_variant|12months|annual|3months|6months|2months|1month)/i.test(id);
   }
   function describeSku(id) {
     var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
       /20tb/i.test(id) ? "Ultra 20TB" :
+      /10tb/i.test(id) ? "Pro 10TB" :
       /5tb/i.test(id) ? "AI Pro 5TB" :
       /2tb/i.test(id) ? "AI Pro 2TB" :
+      /ai\.pro/i.test(id) ? "AI Pro" :
       /helium/i.test(id) ? "AI Plus 400GB" :
       /200gb/i.test(id) ? "200GB" :
       /100gb/i.test(id) ? "100GB" :
@@ -660,7 +715,7 @@
       items.map(function (row) {
         return "<tr><td><code>" + escape(row.id) + "</code></td><td><strong>" + row.count + "</strong></td><td><code>" +
           escape(row.to || "Chưa ghi nhận") + "</code></td><td class=dim>" + escape(describeSku(row.to || "")) + "</td><td>" +
-          (row.fallback ? "<span class=\"st-pill st-warn\">75p</span>" : "<span class=\"st-pill st-muted\">Không</span>") + "</td></tr>";
+          (row.fallback ? "<span class=\"st-pill st-warn\">Fallback</span>" : "<span class=\"st-pill st-muted\">Không</span>") + "</td></tr>";
       }).join("") + "</tbody></table></div>";
   }
 
@@ -671,13 +726,24 @@
         var isPromo = isPromoSku(row.id);
         var isIos = row.id.indexOf("g1.ios.") === 0;
         var rowCls = [isPromo ? "row-promo" : "row-other", isIos ? "row-ios" : ""].join(" ").trim();
+        var originBadge = row.id.indexOf("g1.ios.ai.2tb.") === 0
+          ? " <span class=\"st-pill st-info\">AI 2TB</span>"
+          : isIos
+            ? " <span class=\"st-pill st-muted\">iOS</span>"
+            : /^(?:g1\.play\.|g1\.10tb\.|g1\.2tb\.ai\.(?:18|15|12)months_eft$|g1\.2tb\.1year_eft$|g1\.helium\.12months_ip_90p$|.*subs_variant$)/.test(row.id)
+              ? " <span class=\"st-pill st-warn\">Play</span>"
+              : "";
         var promoBadge = isPromo ? " <span class=tag-promo>PROMO</span>" : "";
-        var useBtn = VALID_SKU.test(row.id)
-          ? "<a class=mini-btn href=\"" + ROOT + "?action=preset&target2tb=" + encodeURIComponent(row.id) + "&tab=scanned\">Dùng làm đích 2TB</a>"
-          : "";
-        return "<tr class=\"" + rowCls + "\"><td><code>" + escape(row.id) + "</code>" + promoBadge + "</td><td class=dim>" +
+        var actionsHtml = [];
+        if (VALID_SKU.test(row.id)) {
+          actionsHtml.push("<a class=mini-btn href=\"" + ROOT + "?action=preset&target2tb=" + encodeURIComponent(row.id) + "&tab=scanned\">Dùng làm đích 2TB</a>");
+        }
+        if (VALID_TOKEN.test(row.id)) {
+          actionsHtml.push("<a class=mini-btn href=\"" + ROOT + "?prefillFrom=" + encodeURIComponent(row.id) + "&tab=studio#custom-rules\">Map rule này</a>");
+        }
+        return "<tr class=\"" + rowCls + "\"><td><code>" + escape(row.id) + "</code>" + originBadge + promoBadge + "</td><td class=dim>" +
           escape(describeSku(row.id)) + "</td><td><strong>" + row.count + "</strong></td><td class=mono>" +
-          escape(shortTime(row.lastSeen)) + "</td><td>" + useBtn + "</td></tr>";
+          escape(shortTime(row.lastSeen)) + "</td><td><div class=vcard-actions>" + actionsHtml.join("") + "</div></td></tr>";
       }).join("") + "</tbody></table></div>";
   }
 
@@ -715,6 +781,7 @@
 
   var profileOptions = [
     { id: "promo-90p", label: "Promo 90p / 75p", desc: "2TB (12T 90p / tùy chỉnh) + 20TB / 30TB ưu đãi" },
+    { id: "ultra-75p", label: "Ultra 75p cố định (v7.8)", desc: "20/30TB → 3 tháng giảm 75% (trả 25%), khi 1M Free/90p lỗi" },
     { id: "v7.6-eft", label: "v7.6 Free + FB 90p", desc: "20/30TB → 1 tháng Free (.acq) tự fallback 90p" },
     { id: "hybrid-combo", label: "Combo 2TB Free + 90p", desc: "2TB → Ultra 1M Free; 20TB / 30TB giữ 90p / 75p" },
     { id: "ultra-1m-free", label: "Ultra 30TB · 1M Free", desc: "Mọi nút iOS → g1.ai.ultra.1month_eft.acq" },
@@ -745,11 +812,19 @@
   }).join("");
 
   var customRulesHtml = !currentConfig.customRules.length
-    ? "<p class=empty>Chưa có Custom Rule nào. Chọn nút nguồn + nhập mã đích bên dưới để tự map nút bất kỳ.</p>"
+    ? "<p class=empty>Chưa có Custom Rule nào. Chọn nút nguồn (Exact hoặc Prefix) + nhập mã đích bên dưới để tự map nút bất kỳ.</p>"
     : '<div class=rules-list>' + currentConfig.customRules.map(function (r) {
-        return '<div class=rule-item><div class=rule-txt><code>' + escape(r.from) + '</code><span class=dim> → </span><code>' +
-          escape(r.to) + '</code> <span class="st-pill st-info">' + escape(describeSku(r.to)) + '</span></div>' +
-          '<a class="mini-btn btn-danger" href="' + ROOT + '?action=del-rule&from=' + encodeURIComponent(r.from) + '&tab=studio">Xóa</a></div>';
+        var rMatch = r.match === "prefix" ? "prefix" : "exact";
+        var isOn = r.enabled !== false;
+        return '<div class=rule-item><div class=rule-txt>' +
+          '<span class="st-pill ' + (rMatch === "prefix" ? "st-warn" : "st-muted") + '">' + (rMatch === "prefix" ? "PREFIX" : "EXACT") + '</span>' +
+          '<code>' + escape(r.from) + '</code><span class=dim> → </span><code>' + escape(r.to) + '</code>' +
+          ' <span class="st-pill st-info">' + escape(describeSku(r.to)) + '</span>' +
+          ' <span class="st-pill ' + (isOn ? "st-ok" : "st-muted") + '">' + (isOn ? "BẬT" : "TẮT") + '</span></div>' +
+          '<div class=vcard-actions>' +
+          '<a class=mini-btn href="' + ROOT + '?action=toggle-rule&from=' + encodeURIComponent(r.from) + '&match=' + rMatch + '&tab=studio">' + (isOn ? "Tắt" : "Bật") + '</a>' +
+          '<a class="mini-btn btn-danger" href="' + ROOT + '?action=del-rule&from=' + encodeURIComponent(r.from) + '&match=' + rMatch + '&tab=studio">Xóa</a>' +
+          '</div></div>';
       }).join("") + '</div>';
 
   var vaultHtml = VAULT_GROUPS.map(function (grp) {
@@ -895,7 +970,7 @@
     '</div>',
 
     '<div class=card><h2>Bảng điều khiển nhanh</h2>',
-    '<h3>1. Chọn Profile mapping (6 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
+    '<h3>1. Chọn Profile mapping (7 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
     '<h3>2. Chế độ hoạt động</h3><div class=seg>' + modeButtons + '</div>',
     '<h3>3. Đổi nhanh mã đích 2TB (khi dùng Promo 90p)</h3><div class=pill-row>' + presetButtons + '</div>',
 
@@ -932,7 +1007,7 @@
     '</div>',
     '<button class="btn btn-pri" type=submit>Lưu cấu hình</button></form></details></div>',
 
-    '<div class=card><h2>Tự Map Nút Bất Kỳ (Custom Rules · ' + currentConfig.customRules.length + '/' + MAX_CUSTOM_RULES + ')</h2>',
+    '<div class=card id=custom-rules><h2>Tự Map Nút Bất Kỳ (Custom Rules · ' + currentConfig.customRules.length + '/' + MAX_CUSTOM_RULES + ')</h2>',
     '<p class=dim>' +
       (currentConfig.profile === "custom-only" || currentConfig.customRulesOverride
         ? 'Trạng thái: <strong>ĐANG ÁP DỤNG</strong> (gắn trực tiếp hoặc ghi đè Profile hiện tại).'
@@ -941,11 +1016,15 @@
     customRulesHtml,
     '<form method=get action="' + ROOT + '"><input type=hidden name=action value=add-rule><input type=hidden name=tab value=studio>',
     '<div class=form-grid>',
+    '<div class=field><label for=ruleMatch>Kiểu khớp</label><select id=ruleMatch name=match>' +
+      '<option value=exact>Khớp chính xác (Exact)</option>' +
+      '<option value=prefix>Khớp tiền tố (Prefix, kết thúc bằng dấu .)</option>' +
+    '</select></div>',
     '<div class=field><label for=fromSel>Chọn nút iOS nguồn</label><select id=fromSel name=from>' +
       COMMON_IOS_SOURCES.map(function (s) { return '<option value="' + s.id + '">' + escape(s.label) + '</option>'; }).join("") +
     '</select></div>',
-    '<div class=field><label for=fromCustom>Hoặc nhập SKU nguồn khác</label><input id=fromCustom type=text name=fromCustom placeholder="VD: g1.ios.200gb.m (bỏ trống nếu dùng ô bên trái)"></div>',
-    '<div class=field><label for=toSku>SKU đích muốn đổi sang</label><input id=toSku type=text name=to value="' + escape(currentConfig.target2tb) + '" placeholder="VD: g1.ai.ultra.1month_eft.acq"></div>',
+    '<div class=field><label for=fromCustom>Hoặc nhập SKU nguồn khác</label><input id=fromCustom type=text name=fromCustom value="' + escape(prefillFrom) + '" placeholder="VD: g1.ios.200gb.m hoặc g1.ios.ai.2tb."></div>',
+    '<div class=field><label for=toSku>SKU đích muốn đổi sang</label><input id=toSku type=text name=to value="' + escape(currentConfig.target2tb) + '" placeholder="VD: g1.ai.ultra.3months_ip_75p.acq"></div>',
     '</div><div class=actions><button class="btn btn-pri" type=submit>Thêm Custom Rule</button>' +
       (currentConfig.customRules.length
         ? '<a class="btn btn-danger" href="' + ROOT + '?action=clear-rules&tab=studio">Xóa hết Custom Rules</a>'
@@ -963,7 +1042,7 @@
 
     /* ---------- TAB 2: SKU VAULT ---------- */
     '<section class=pane id=pane-vault>',
-    '<div class=card><h2>Kho SKU Cộng Đồng (24 mã chuẩn · 1 chạm để gán)</h2>',
+    '<div class=card><h2>Kho SKU Cộng Đồng (30 mã chuẩn · 1 chạm để gán)</h2>',
     '<p class=dim>Phân biệt rõ mã <strong>iOS (<code>*.acq</code>)</strong> và mã <strong>Android Play (<code>Play ID</code>)</strong>. Lưu ý: KHÔNG bật MITM cho <code>*.apple.com</code> hoặc <code>*.icloud.com</code> để tránh lỗi StoreKit khi thanh toán.</p>',
     vaultHtml, '</div></section>',
 
@@ -989,6 +1068,7 @@
     '<li>Đổi sang <strong>Gmail phụ sạch</strong> chưa từng đăng ký Google One (nguyên nhân phổ biến nhất khi thanh nổi đã khớp SKU).</li>',
     '<li>Nếu cùng 1 Apple ID đã dùng ~3 lượt bị kẹt trên app Google chính, chuyển sang đăng ký từ app Google khác (<strong>Gemini</strong>, <strong>Google One</strong>, <strong>Gmail</strong>, <strong>Google Photos</strong>, <strong>NotebookLM</strong>).</li>',
     '<li>Đảm bảo Apple ID đã liên kết thẻ hợp lệ, <strong>KHÔNG</strong> bật MITM cho <code>*.apple.com</code> / <code>*.icloud.com</code>, và hủy tự động gia hạn ngay sau khi kích hoạt gói 1 tháng 0đ.</li>',
+    '<li>Nếu đã dùng Gmail sạch mà cả <strong>1M Free</strong> và <strong>90p</strong> đều báo lỗi (do Google tạm khóa ưu đãi đó), hãy đổi Profile sang <strong>Ultra 75p cố định (v7.8)</strong> để thử gói giảm 75% (trả 25% trong 3 tháng).</li>',
     '</ol></div>',
     '<div class=card><h2>Lịch sử 10 lần ghi đè gần nhất</h2>' + recentRewriteTable(report.test.recentRewrites) + '</div>',
     '<div class=card><h2>Chẩn đoán 10 response quét gần nhất</h2>',
