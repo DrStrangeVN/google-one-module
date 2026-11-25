@@ -350,6 +350,7 @@
   var latestScan = report.scan.recentResponses.length ?
     report.scan.recentResponses[report.scan.recentResponses.length - 1] : null;
   var isCurrentCollector = report.scan.version === "g1-acq-v7.5" ||
+    report.scan.version === "g1-acq-v7.6" ||
     report.scan.version === "g1-aio-v7.5" ||
     report.scan.version === "g1-sku-scan-v7.5";
   var scanVersionStatus = isCurrentCollector ?

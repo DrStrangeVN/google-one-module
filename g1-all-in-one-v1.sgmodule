@@ -1,5 +1,5 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.0 Studio (Liquid Glass): 5 Profile (có Hybrid Combo & Custom Rules) + Kho 18 SKU + Anti-Wipe Log + Native Protobuf + Strict Catalog + Thanh nổi HUD
+#!desc=v2.1 Studio (Liquid Glass): 6 Profile (có v7.6-eft & Hybrid Combo) + bắt g1.ios.ai.2tb.* + chống cache WebView + Kho 18 SKU (iOS/Play) + Custom Rules + Native Protobuf
 #!system=ios
 
 [Rule]
@@ -11,7 +11,12 @@ AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP),(DEST-PORT,44
 http-request ^https:\/\/one\.google\.com\/ header-del Accept-Encoding
 http-request ^https:\/\/one\.google\.com\/ header-del If-None-Match
 http-request ^https:\/\/one\.google\.com\/ header-del If-Modified-Since
+http-request ^https:\/\/one\.google\.com\/ header-replace Cache-Control no-cache
+http-request ^https:\/\/one\.google\.com\/ header-replace Pragma no-cache
 http-response ^https:\/\/one\.google\.com\/ header-del Alt-Svc
+http-response ^https:\/\/one\.google\.com\/ header-del ETag
+http-response ^https:\/\/one\.google\.com\/ header-del Last-Modified
+http-response ^https:\/\/one\.google\.com\/ header-replace Cache-Control "no-store, no-cache, must-revalidate"
 
 [Script]
 g1-aio-v1-web = type=http-response,pattern=^https:\/\/one\.google\.com\/,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js

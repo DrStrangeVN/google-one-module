@@ -22,6 +22,8 @@ const TWENTY_TARGET = "g1.20tb.3months_ip_90p.acq";
 const THIRTY_TARGET = "g1.ai.ultra.3months_ip_90p.acq";
 const TWENTY_FALLBACK = "g1.20tb.3months_ip_75p.acq";
 const THIRTY_FALLBACK = "g1.ai.ultra.3months_ip_75p.acq";
+const V76_TWENTY_TARGET = "g1.20tb.1month_eft.acq";
+const V76_THIRTY_TARGET = "g1.ai.ultra.1month_eft.acq";
 const source = Object.fromEntries(
   [
     "g1-acq.js", "g1-all-in-one.js", "g1-all-in-one-v1.js",
@@ -98,17 +100,17 @@ test("combined module maps 2TB, 20TB and 30TB while preserving unrelated full to
   ];
   const values = [SOURCE, OTHER_SOURCE, SOURCE, TWENTY, THIRTY, ...untouched];
   const result = run("g1-acq.js", { body: JSON.stringify(values) });
-  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TARGET, TWENTY_TARGET, THIRTY_TARGET, ...untouched]);
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET, ...untouched]);
   const record = get(result.storage, TEST_KEY);
   assert.equal(record.hitCount, 5);
   assert.equal(record.annualHitCount, 3);
   assert.equal(record.status, "rewritten");
-  assert.equal(record.version, "g1-acq-v7.5");
+  assert.equal(record.version, "g1-acq-v7.6");
   assert.deepEqual(record.matchedFrom, [
-    { id: TWENTY, to: TWENTY_TARGET, count: 1, fallback: false },
+    { id: TWENTY, to: V76_TWENTY_TARGET, count: 1, fallback: false },
     { id: OTHER_SOURCE, to: TARGET, count: 1, fallback: false },
     { id: SOURCE, to: TARGET, count: 2, fallback: false },
-    { id: THIRTY, to: THIRTY_TARGET, count: 1, fallback: false }
+    { id: THIRTY, to: V76_THIRTY_TARGET, count: 1, fallback: false }
   ]);
 });
 
@@ -125,29 +127,35 @@ test("empty responses or responses with no configured sources pass through", () 
   }
 });
 
-test("20TB and 30TB fallback results agree with the original v6 across all offer combinations", () => {
-  const offers = [TWENTY_TARGET, THIRTY_TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK];
-  for (let mask = 0; mask < 16; mask++) {
-    const observed = offers.filter((_, index) => mask & (1 << index));
-    const body = JSON.stringify([TWENTY, THIRTY, TWENTY, ...observed]);
-    const legacy = run("tests/fixtures/g1-acq-v6.js", { body });
-    const combined = run("g1-acq.js", { body });
-    assert.equal(combined.payload.body, legacy.payload.body, "offer mask=" + mask);
-    const record = get(combined.storage, TEST_KEY);
-    assert.equal(record.hitCount, 3);
-    assert.equal(record.annualHitCount, 0);
-    assert.equal(record.status, "rewritten");
+test("20TB and 30TB select trial or 90p independently across all sixteen offer combinations (v7.6)", () => {
+  const cases = (target, backup) => [
+    { offers: [], to: target, fallback: false },
+    { offers: [target], to: target, fallback: false },
+    { offers: [backup], to: backup, fallback: true },
+    { offers: [target, backup], to: target, fallback: false }
+  ];
+  for (const twenty of cases(V76_TWENTY_TARGET, TWENTY_TARGET)) {
+    for (const thirty of cases(V76_THIRTY_TARGET, THIRTY_TARGET)) {
+      const observed = [...twenty.offers, ...thirty.offers];
+      const body = JSON.stringify([TWENTY, THIRTY, TWENTY, ...observed]);
+      const result = run("g1-acq.js", { body });
+      assert.deepEqual(JSON.parse(result.payload.body), [twenty.to, thirty.to, twenty.to, ...observed]);
+      const record = get(result.storage, TEST_KEY);
+      assert.equal(record.hitCount, 3);
+      assert.equal(record.annualHitCount, 0);
+      assert.equal(record.status, "rewritten");
+    }
   }
 });
 
-test("fallback decisions are independent and the 2TB target stays fixed", () => {
-  const body = JSON.stringify([SOURCE, TWENTY, THIRTY, TWENTY_TARGET, TWENTY_FALLBACK, THIRTY_FALLBACK]);
+test("fallback decisions are independent and the 2TB target stays fixed (v7.6)", () => {
+  const body = JSON.stringify([SOURCE, TWENTY, THIRTY, V76_TWENTY_TARGET, TWENTY_TARGET, THIRTY_TARGET, THIRTY_FALLBACK]);
   const result = run("g1-acq.js", { body });
-  assert.deepEqual(JSON.parse(result.payload.body).slice(0, 3), [TARGET, TWENTY_TARGET, THIRTY_FALLBACK]);
+  assert.deepEqual(JSON.parse(result.payload.body).slice(0, 3), [TARGET, V76_TWENTY_TARGET, THIRTY_TARGET]);
   const rows = get(result.storage, TEST_KEY).matchedFrom;
   assert.deepEqual(rows.find(row => row.id === SOURCE), { id: SOURCE, to: TARGET, count: 1, fallback: false });
-  assert.deepEqual(rows.find(row => row.id === TWENTY), { id: TWENTY, to: TWENTY_TARGET, count: 1, fallback: false });
-  assert.deepEqual(rows.find(row => row.id === THIRTY), { id: THIRTY, to: THIRTY_FALLBACK, count: 1, fallback: true });
+  assert.deepEqual(rows.find(row => row.id === TWENTY), { id: TWENTY, to: V76_TWENTY_TARGET, count: 1, fallback: false });
+  assert.deepEqual(rows.find(row => row.id === THIRTY), { id: THIRTY, to: THIRTY_TARGET, count: 1, fallback: true });
 });
 
 test("single module collects other Google pages without changing the last mapping record", () => {
@@ -175,9 +183,9 @@ test("single module collects other Google pages without changing the last mappin
 test("single module saves original candidates before rewriting without recording generated targets", () => {
   const body = JSON.stringify([SOURCE, SOURCE, TWENTY, THIRTY, "com.google.one.fixture"]);
   const result = run("g1-acq.js", { body });
-  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, TWENTY_TARGET, THIRTY_TARGET, "com.google.one.fixture"]);
+  assert.deepEqual(JSON.parse(result.payload.body), [TARGET, TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET, "com.google.one.fixture"]);
   const scan = get(result.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-acq-v7.5");
+  assert.equal(scan.version, "g1-acq-v7.6");
   assert.deepEqual(scan.skus.map(row => row.id), ["com.google.one.fixture", TWENTY, SOURCE, THIRTY]);
   assert.equal(scan.skus.find(row => row.id === SOURCE).count, 2);
   assert.deepEqual(result.writes, [SCAN_KEY, TEST_KEY]);
@@ -243,7 +251,7 @@ test("activity distinguishes new IDs, repeated IDs, empty text and nontext respo
   assert.deepEqual(data.scan.recentResponses, scan.recentResponses);
   assert.equal(data.scan.nonTextResponses, 1);
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
-  assert(html.includes("Script quét thực tế: <code>g1-acq-v7.5</code>"));
+  assert(html.includes("Script quét thực tế: <code>g1-acq-v7.6</code>"));
   assert(html.includes("Đã nhận response, SKU trùng bản ghi cũ"));
   assert(html.includes("Response không phải văn bản để quét"));
 });
@@ -292,7 +300,7 @@ test("old scan records remain old until an actual response creates a new diagnos
   assert(html.includes("Bản ghi thu thập bản cũ; chưa lưu lịch sử chẩn đoán v7.5."));
   run("g1-acq.js", { url: "https://one.google.com/plans", body: SOURCE, storage });
   data = JSON.parse(run("g1-sku-report.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(data.scan.version, "g1-acq-v7.5");
+  assert.equal(data.scan.version, "g1-acq-v7.6");
   assert.equal(data.scan.scannedResponses, 6);
   assert.equal(data.scan.matchedResponses, 2);
   assert.equal(data.scan.skus.length, 1);
@@ -550,22 +558,22 @@ test("report control panel updates mode, preset, full form and rejects invalid S
 test("report exports each actual target and separates annual hits from total hits", () => {
   const storage = new Map();
   run("g1-acq.js", {
-    body: JSON.stringify([SOURCE, TWENTY, THIRTY, THIRTY_FALLBACK]), storage
+    body: JSON.stringify([SOURCE, TWENTY, THIRTY, THIRTY_TARGET]), storage
   });
   const result = run("g1-sku-report.js", { url: REPORT + "?format=json", storage });
   const data = JSON.parse(result.payload.response.body).test;
-  assert.equal(data.version, "g1-acq-v7.5");
+  assert.equal(data.version, "g1-acq-v7.6");
   assert.equal(data.hitCount, 3);
   assert.equal(data.annualHitCount, 1);
-  assert.equal(data.matchedFrom.find(row => row.id === TWENTY).to, TWENTY_TARGET);
+  assert.equal(data.matchedFrom.find(row => row.id === TWENTY).to, V76_TWENTY_TARGET);
   assert.deepEqual(data.matchedFrom.find(row => row.id === THIRTY), {
-    id: THIRTY, count: 1, to: THIRTY_FALLBACK, fallback: true
+    id: THIRTY, count: 1, to: THIRTY_TARGET, fallback: true
   });
   const html = run("g1-sku-report.js", { url: REPORT, storage }).payload.response.body;
   assert(html.includes("Lần chạy mapping 3 mức gần nhất"));
   assert(html.includes("Trong đó 2TB: 1"));
-  assert(html.includes(TWENTY_TARGET));
-  assert(html.includes(THIRTY_FALLBACK));
+  assert(html.includes(V76_TWENTY_TARGET));
+  assert(html.includes(THIRTY_TARGET));
 });
 
 test("new report displays existing v1 records with their original 2TB target", () => {
@@ -794,7 +802,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.0");
+  assert.equal(scan.version, "g1-aio-v2.1");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1067,13 +1075,50 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.0"));
+  assert(studioHtml.includes("aio-v2.1"));
   assert(!studioHtml.includes("linear-gradient"));
   assert(!studioHtml.includes("radial-gradient"));
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.0");
+  assert.equal(jsonOut.reportVersion, "aio-v2.1");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
+});
+
+test("ALL IN ONE_V1 v2.1 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, and anti-cache headers", () => {
+  const AI_2TB = "g1.ios.ai.2tb.m.ip_1mo_90p.acq";
+  const storage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "v7.6-eft", mode: "auto", overlayPanel: false, notify: false
+  })]]);
+  const resPrimary = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(resPrimary.payload.body), [TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET]);
+
+  const resFallback = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB, TWENTY, THIRTY, TWENTY_TARGET, THIRTY_TARGET]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(resFallback.payload.body).slice(0, 3), [TARGET, TWENTY_TARGET, THIRTY_TARGET]);
+
+  // Verify g1.ios.ai.2tb.* also works under hybrid-combo
+  storage.set(CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "hybrid-combo", mode: "auto", overlayPanel: false, notify: false
+  }));
+  const hybridAi2tb = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([AI_2TB]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(hybridAi2tb.payload.body), [V76_THIRTY_TARGET]);
+
+  // Verify anti-cache headers in Shadowrocket & Surge V1 modules
+  for (const modFile of ["g1-all-in-one-v1.sgmodule", "surge/g1-all-in-one-v1.sgmodule"]) {
+    const content = fs.readFileSync(path.join(root, modFile), "utf8");
+    assert.match(content, /header-del ETag/);
+    assert.match(content, /header-replace Cache-Control "no-store/);
+  }
+  const loonContent = fs.readFileSync(path.join(root, "loon/g1-all-in-one-v1.plugin"), "utf8");
+  assert.match(loonContent, /header-add Cache-Control no-cache/);
 });
