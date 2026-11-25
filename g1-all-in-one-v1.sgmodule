@@ -1,5 +1,5 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.2 Hotfix (Liquid Glass): 6 Profile + Custom Rules an toàn + Header Rewrite chỉ nhắm trang gói (/ai,/upsell,/plans,/storage) + g1.ios.ai.2tb.* + Native Protobuf
+#!desc=v2.0 Studio (Liquid Glass): 5 Profile (có Hybrid Combo & Custom Rules) + Kho 18 SKU + Anti-Wipe Log + Native Protobuf + Strict Catalog + Thanh nổi HUD
 #!system=ios
 
 [Rule]
@@ -8,14 +8,10 @@ AND,((DOMAIN,one.google.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 
 [Header Rewrite]
-http-request ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del Accept-Encoding
-http-request ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del If-None-Match
-http-request ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del If-Modified-Since
-http-request ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-replace Cache-Control no-cache
-http-request ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-replace Pragma no-cache
-http-response ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del Alt-Svc
-http-response ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del ETag
-http-response ^https:\/\/one\.google\.com\/(?:ai|upsell|plans|storage) header-del Last-Modified
+http-request ^https:\/\/one\.google\.com\/ header-del Accept-Encoding
+http-request ^https:\/\/one\.google\.com\/ header-del If-None-Match
+http-request ^https:\/\/one\.google\.com\/ header-del If-Modified-Since
+http-response ^https:\/\/one\.google\.com\/ header-del Alt-Svc
 
 [Script]
 g1-aio-v1-web = type=http-response,pattern=^https:\/\/one\.google\.com\/,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js

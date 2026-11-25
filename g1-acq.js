@@ -2,17 +2,17 @@
 "use strict";
 
 (function () {
-  var VERSION = "g1-acq-v7.6";
+  var VERSION = "g1-acq-v7.5";
   var SOURCE_PREFIX = "g1.ios.2tb.";
-  // Candidate 12-month offer ID; store metadata is still unverified on iOS.
+  // Candidate 12-month offer ID from v7.5.0; store metadata is still unverified on iOS.
   var TARGET = "g1.2tb.ai.12months_ip_90p";
   var SKU_MAP = {
-    "g1.ios.20tb.m.v2": "g1.20tb.1month_eft.acq",
-    "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.1month_eft.acq"
+    "g1.ios.20tb.m.v2": "g1.20tb.3months_ip_90p.acq",
+    "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.3months_ip_90p.acq"
   };
   var FALLBACK = {
-    "g1.20tb.1month_eft.acq": "g1.20tb.3months_ip_90p.acq",
-    "g1.ai.ultra.1month_eft.acq": "g1.ai.ultra.3months_ip_90p.acq"
+    "g1.20tb.3months_ip_90p.acq": "g1.20tb.3months_ip_75p.acq",
+    "g1.ai.ultra.3months_ip_90p.acq": "g1.ai.ultra.3months_ip_75p.acq"
   };
   var TEST_KEY = "g1.pro.annual.test.v1";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -108,7 +108,7 @@
   console.log("[g1-acq] " + VERSION + " hits=" + hits + " annualHits=" + annualHits);
   sources.forEach(function (source) {
     console.log("[g1-acq] " + source.id + " -> " + source.to + " x" + source.count +
-      (source.fallback ? " fallback=" + source.to : ""));
+      (source.fallback ? " fallback=75p" : ""));
   });
   $done(hits ? { body: out } : {});
 

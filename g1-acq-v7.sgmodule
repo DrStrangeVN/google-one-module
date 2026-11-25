@@ -1,5 +1,5 @@
 #!name=G1 ACQ
-#!desc=v7.6.0 (Bản lẻ Backup): Tự quét SKU + chẩn đoán 10 response; 20TB/30TB ưu tiên Ultra 1 tháng Free (_eft.acq) fallback 90p; 2TB g1.2tb.ai.12months_ip_90p
+#!desc=v7.5.0 (Bản lẻ Backup): Tự quét SKU + chẩn đoán 10 response gần nhất; test 2TB g1.2tb.ai.12months_ip_90p + mapping ưu đãi 20TB/30TB & fallback 75p; báo cáo nội bộ
 #!system=ios
 
 [Rule]
