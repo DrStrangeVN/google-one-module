@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.1 Studio): 6 Profiles (incl. v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.2 Hotfix): 6 Profiles (incl. v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, scoped Custom Rules override, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.1";
+  var VERSION = "g1-aio-v2.2";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -267,10 +267,13 @@
   function resolveTarget(id, observedList, cfg) {
     var is2tb = is2tbSource(id);
 
-    // Priority 1: User-defined custom rules override any profile mapping.
-    for (var i = 0; i < cfg.customRules.length; i++) {
-      if (cfg.customRules[i].from === id) {
-        return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+    // Priority 1: User-defined custom rules apply only in "custom-only" profile
+    // or when customRulesOverride is explicitly enabled.
+    if (cfg.profile === "custom-only" || cfg.customRulesOverride === true) {
+      for (var i = 0; i < cfg.customRules.length; i++) {
+        if (cfg.customRules[i].from === id) {
+          return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+        }
       }
     }
 
@@ -357,7 +360,7 @@
         '</span><br><span style="color:#34D399;font-weight:600;">→ ' + escHtml(m.to) +
         '</span><span style="color:#A7B0C5;font-size:11px;margin-left:6px;">(' + escHtml(describeSku(m.to)) + ')</span></div>' +
         '<span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">x' + m.count +
-        (m.fallback ? ' · 75p' : '') + '</span></div>';
+        (m.fallback ? ' · FB' : '') + '</span></div>';
     });
     var sparkIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     var panel =
@@ -1010,7 +1013,8 @@
       overlayPanel: true,
       notify: true,
       theme: "auto",
-      customRules: []
+      customRules: [],
+      customRulesOverride: false
     };
     try {
       if (typeof $persistentStore === "undefined" || typeof $persistentStore.read !== "function") {
@@ -1045,6 +1049,7 @@
         defaults.theme = parsed.theme;
       }
       defaults.customRules = sanitizeCustomRules(parsed.customRules);
+      if (parsed.customRulesOverride === true) defaults.customRulesOverride = true;
     } catch (error) {
       return defaults;
     }

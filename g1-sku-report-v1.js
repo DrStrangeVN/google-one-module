@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.0). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.2). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.1";
+  var VERSION = "aio-v2.2";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -166,7 +166,8 @@
       overlayPanel: true,
       notify: true,
       theme: "auto",
-      customRules: []
+      customRules: [],
+      customRulesOverride: false
     };
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
     if (parsed.profile === "promo-90p" || parsed.profile === "v7.6-eft" ||
@@ -194,6 +195,7 @@
       defaults.theme = parsed.theme;
     }
     defaults.customRules = sanitizeCustomRules(parsed.customRules);
+    if (parsed.customRulesOverride === true) defaults.customRulesOverride = true;
     return defaults;
   }
 
@@ -340,7 +342,9 @@
       updatedRules.push({ from: fromSku, to: toSku });
       cfg.customRules = updatedRules;
       if (saveConfig(cfg)) {
-        actionMessage = "Đã lưu Custom Rule: " + fromSku + " → " + toSku + ".";
+        var ruleActive = cfg.profile === "custom-only" || cfg.customRulesOverride;
+        actionMessage = "Đã lưu Custom Rule: " + fromSku + " → " + toSku +
+          (ruleActive ? " (đang áp dụng)." : " (chờ: bật 'Ưu tiên Custom Rules đè Profile' trong Cài đặt nâng cao hoặc chọn profile 'Chỉ Custom Rules').");
       }
       return;
     }
@@ -351,6 +355,14 @@
       cfg.customRules = cfg.customRules.filter(function (r) { return r.from !== removeFrom; });
       if (cfg.customRules.length < beforeLen && saveConfig(cfg)) {
         actionMessage = "Đã xóa Custom Rule cho: " + removeFrom + ".";
+      }
+      return;
+    }
+
+    if (query.action === "clear-rules") {
+      cfg.customRules = [];
+      if (saveConfig(cfg)) {
+        actionMessage = "Đã xóa toàn bộ Custom Rules.";
       }
       return;
     }
@@ -402,6 +414,7 @@
       cfg.enable20tb = query.e20tb === "1";
       cfg.enable30tb = query.e30tb === "1";
       cfg.notify = query.notify === "1";
+      cfg.customRulesOverride = query.crOverride === "1";
       if (saveConfig(cfg)) {
         actionMessage = "Đã lưu cấu hình ALL IN ONE_V1.";
       }
@@ -908,11 +921,16 @@
     '<label class=sw-row><span>Strict Catalog (Chỉ sửa khi có promo)</span><input class=sw-input type=checkbox name=strict value=1' + (currentConfig.strictCatalog ? ' checked' : '') + '><span class=sw-track></span></label>',
     '<label class=sw-row><span>Thanh nổi trên trang Google</span><input class=sw-input type=checkbox name=overlay value=1' + (currentConfig.overlayPanel ? ' checked' : '') + '><span class=sw-track></span></label>',
     '<label class=sw-row><span>Thông báo iOS</span><input class=sw-input type=checkbox name=notify value=1' + (currentConfig.notify ? ' checked' : '') + '><span class=sw-track></span></label>',
+    '<label class=sw-row><span>Ưu tiên Custom Rules đè Profile</span><input class=sw-input type=checkbox name=crOverride value=1' + (currentConfig.customRulesOverride ? ' checked' : '') + '><span class=sw-track></span></label>',
     '</div>',
     '<button class="btn btn-pri" type=submit>Lưu cấu hình</button></form></details></div>',
 
     '<div class=card><h2>Tự Map Nút Bất Kỳ (Custom Rules · ' + currentConfig.customRules.length + '/' + MAX_CUSTOM_RULES + ')</h2>',
-    '<p class=dim>Ưu tiên chạy trước mọi Profile: gán nút gói iOS bất kỳ sang mã đích bạn muốn.</p>',
+    '<p class=dim>' +
+      (currentConfig.profile === "custom-only" || currentConfig.customRulesOverride
+        ? 'Trạng thái: <strong>ĐANG ÁP DỤNG</strong> (gắn trực tiếp hoặc ghi đè Profile hiện tại).'
+        : 'Trạng thái: <strong>ĐANG CHỜ</strong> — mặc định chỉ chạy khi chọn profile «Chỉ Custom Rules» hoặc bật «Ưu tiên Custom Rules đè Profile» trong Cài đặt nâng cao.') +
+    '</p>',
     customRulesHtml,
     '<form method=get action="' + ROOT + '"><input type=hidden name=action value=add-rule><input type=hidden name=tab value=studio>',
     '<div class=form-grid>',
@@ -921,7 +939,11 @@
     '</select></div>',
     '<div class=field><label for=fromCustom>Hoặc nhập SKU nguồn khác</label><input id=fromCustom type=text name=fromCustom placeholder="VD: g1.ios.200gb.m (bỏ trống nếu dùng ô bên trái)"></div>',
     '<div class=field><label for=toSku>SKU đích muốn đổi sang</label><input id=toSku type=text name=to value="' + escape(currentConfig.target2tb) + '" placeholder="VD: g1.ai.ultra.1month_eft.acq"></div>',
-    '</div><button class="btn btn-pri" type=submit>Thêm Custom Rule</button></form></div>',
+    '</div><div class=actions><button class="btn btn-pri" type=submit>Thêm Custom Rule</button>' +
+      (currentConfig.customRules.length
+        ? '<a class="btn btn-danger" href="' + ROOT + '?action=clear-rules&tab=studio">Xóa hết Custom Rules</a>'
+        : '') +
+    '</div></form></div>',
 
     '<div class=card><h2>Lần khớp thành công gần nhất (Chống mất log)</h2>',
     lastSuccess

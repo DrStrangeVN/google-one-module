@@ -802,7 +802,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.1");
+  assert.equal(scan.version, "g1-aio-v2.2");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -861,7 +861,8 @@ test("ALL IN ONE_V1 report saves profile, overlayPanel, strictCatalog & nativeMo
     overlayPanel: true,
     notify: true,
     theme: "auto",
-    customRules: []
+    customRules: [],
+    customRulesOverride: false
   });
 
   // Note: e30tb & overlay omitted in query -> false
@@ -1075,21 +1076,21 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.1"));
+  assert(studioHtml.includes("aio-v2.2"));
   assert(!studioHtml.includes("linear-gradient"));
   assert(!studioHtml.includes("radial-gradient"));
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.1");
+  assert.equal(jsonOut.reportVersion, "aio-v2.2");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
 
-test("ALL IN ONE_V1 v2.1 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, and anti-cache headers", () => {
+test("ALL IN ONE_V1 v2.2 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, scoped headers, and safe customRules override", () => {
   const AI_2TB = "g1.ios.ai.2tb.m.ip_1mo_90p.acq";
   const storage = new Map([[CONFIG_KEY, JSON.stringify({
-    schemaVersion: 1, profile: "v7.6-eft", mode: "auto", overlayPanel: false, notify: false
+    schemaVersion: 1, profile: "v7.6-eft", mode: "auto", overlayPanel: true, notify: false
   })]]);
   const resPrimary = run("g1-all-in-one-v1.js", {
     body: JSON.stringify([AI_2TB, TWENTY, THIRTY]),
@@ -1098,10 +1099,11 @@ test("ALL IN ONE_V1 v2.1 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, and 
   assert.deepEqual(JSON.parse(resPrimary.payload.body), [TARGET, V76_TWENTY_TARGET, V76_THIRTY_TARGET]);
 
   const resFallback = run("g1-all-in-one-v1.js", {
-    body: JSON.stringify([AI_2TB, TWENTY, THIRTY, TWENTY_TARGET, THIRTY_TARGET]),
+    body: "<html><body>" + JSON.stringify([AI_2TB, TWENTY, THIRTY, TWENTY_TARGET, THIRTY_TARGET]) + "</body></html>",
     storage
   });
-  assert.deepEqual(JSON.parse(resFallback.payload.body).slice(0, 3), [TARGET, TWENTY_TARGET, THIRTY_TARGET]);
+  assert(resFallback.payload.body.includes("· FB</span>"));
+  assert(!resFallback.payload.body.includes("· 75p</span>"));
 
   // Verify g1.ios.ai.2tb.* also works under hybrid-combo
   storage.set(CONFIG_KEY, JSON.stringify({
@@ -1113,12 +1115,58 @@ test("ALL IN ONE_V1 v2.1 supports v7.6-eft profile, g1.ios.ai.2tb.* prefix, and 
   });
   assert.deepEqual(JSON.parse(hybridAi2tb.payload.body), [V76_THIRTY_TARGET]);
 
-  // Verify anti-cache headers in Shadowrocket & Surge V1 modules
+  // Verify scoped anti-cache headers in Shadowrocket & Surge V1 modules (never global one.google.com/)
+  const scopedHeaderPrefix = "https:\\/\\/one\\.google\\.com\\/(?:ai|upsell|plans|storage)";
   for (const modFile of ["g1-all-in-one-v1.sgmodule", "surge/g1-all-in-one-v1.sgmodule"]) {
     const content = fs.readFileSync(path.join(root, modFile), "utf8");
-    assert.match(content, /header-del ETag/);
-    assert.match(content, /header-replace Cache-Control "no-store/);
+    assert(content.includes("header-del ETag"));
+    assert(content.includes(scopedHeaderPrefix));
+    assert(!/http-(?:request|response) \^https:\\\/\\\/one\\\.google\\\.com\\\/ header-/.test(content));
+    assert(!content.includes('Cache-Control "no-store'));
   }
   const loonContent = fs.readFileSync(path.join(root, "loon/g1-all-in-one-v1.plugin"), "utf8");
-  assert.match(loonContent, /header-add Cache-Control no-cache/);
+  assert(loonContent.includes(scopedHeaderPrefix));
+  assert(!/\^https:\\\/\\\/one\\\.google\\\.com\\\/ header-/.test(loonContent));
+  assert(!loonContent.includes("header-add Cache-Control"));
+
+  // Regression: stale customRules must NOT hijack other profiles (like ultra-1m-free) by default
+  const ruleStorage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=ultra-1m-free",
+    storage: ruleStorage
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&from=g1.ios.20tb.m.v2&to=g1.ai.ultra.12months_eft.acq",
+    storage: ruleStorage
+  });
+  const withoutOverride = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([TWENTY]),
+    storage: ruleStorage
+  });
+  assert.deepEqual(JSON.parse(withoutOverride.payload.body), ["g1.ai.ultra.1month_eft.acq"]);
+
+  // Studio UI shows Clear All button when rules exist
+  const htmlWithRule = run("g1-sku-report-v1.js", { url: REPORT, storage: ruleStorage }).payload.response.body;
+  assert(htmlWithRule.includes("action=clear-rules"));
+
+  // Enabling crOverride=1 lets customRules override active profile
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=save&profile=ultra-1m-free&mode=auto&target2tb=" + TARGET + "&scope=ai&native=scan&e2tb=1&e20tb=1&e30tb=1&crOverride=1",
+    storage: ruleStorage
+  });
+  assert.equal(get(ruleStorage, CONFIG_KEY).customRulesOverride, true);
+  const withOverride = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([TWENTY]),
+    storage: ruleStorage
+  });
+  assert.deepEqual(JSON.parse(withOverride.payload.body), ["g1.ai.ultra.12months_eft.acq"]);
+
+  // 1-tap clear-rules wipes stale rules and hides the Clear All button
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=clear-rules&tab=studio",
+    storage: ruleStorage
+  });
+  assert.deepEqual(get(ruleStorage, CONFIG_KEY).customRules, []);
+  const htmlCleared = run("g1-sku-report-v1.js", { url: REPORT, storage: ruleStorage }).payload.response.body;
+  assert(!htmlCleared.includes("action=clear-rules"));
 });
