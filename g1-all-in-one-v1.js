@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.0 Studio): 5 Profiles, Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.3 Studio): 6 Profiles (incl. v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, safe Custom Rules override, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.0";
+  var VERSION = "g1-aio-v2.3";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -13,6 +13,14 @@
   var FALLBACK = {
     "g1.20tb.3months_ip_90p.acq": "g1.20tb.3months_ip_75p.acq",
     "g1.ai.ultra.3months_ip_90p.acq": "g1.ai.ultra.3months_ip_75p.acq"
+  };
+  var V76_SKU_MAP = {
+    "g1.ios.20tb.m.v2": "g1.20tb.1month_eft.acq",
+    "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.1month_eft.acq"
+  };
+  var V76_FALLBACK = {
+    "g1.20tb.1month_eft.acq": "g1.20tb.3months_ip_90p.acq",
+    "g1.ai.ultra.1month_eft.acq": "g1.ai.ultra.3months_ip_90p.acq"
   };
   var PROBE_MAP = {
     "g1.ios.30gb.m": "g1.ai.ultra.3months_eft.acq",
@@ -251,13 +259,21 @@
     $done(hits && rewrittenBytes ? { body: rewrittenBytes } : {});
   }
 
-  function resolveTarget(id, observedList, cfg) {
-    var is2tb = id.indexOf(SOURCE_PREFIX) === 0 && id.length > SOURCE_PREFIX.length;
+  function is2tbSource(id) {
+    return (id.indexOf("g1.ios.2tb.") === 0 && id.length > 11) ||
+      (id.indexOf("g1.ios.ai.2tb.") === 0 && id.length > 14);
+  }
 
-    // Priority 1: User-defined custom rules override any profile mapping.
-    for (var i = 0; i < cfg.customRules.length; i++) {
-      if (cfg.customRules[i].from === id) {
-        return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+  function resolveTarget(id, observedList, cfg) {
+    var is2tb = is2tbSource(id);
+
+    // Priority 1: User-defined custom rules apply only in "custom-only" profile
+    // or when customRulesOverride is explicitly enabled.
+    if (cfg.profile === "custom-only" || cfg.customRulesOverride === true) {
+      for (var i = 0; i < cfg.customRules.length; i++) {
+        if (cfg.customRules[i].from === id) {
+          return { to: cfg.customRules[i].to, fallback: false, is2tb: is2tb };
+        }
       }
     }
 
@@ -279,7 +295,10 @@
       return null;
     }
 
-    // Both "hybrid-combo" and "promo-90p" share 20TB/30TB 90p/75p fallback; hybrid maps 2TB -> Ultra 1M Free.
+    var useV76 = cfg.profile === "v7.6-eft";
+    var mapTable = useV76 ? V76_SKU_MAP : SKU_MAP;
+    var fbTable = useV76 ? V76_FALLBACK : FALLBACK;
+
     var to;
     var fallback = false;
     if (is2tb) {
@@ -287,16 +306,16 @@
       to = cfg.profile === "hybrid-combo" ? ULTRA_1M_TARGET : cfg.target2tb;
     } else if (id === "g1.ios.20tb.m.v2") {
       if (!cfg.enable20tb) return null;
-      to = SKU_MAP[id];
-      if (observedList.indexOf(to) === -1 && FALLBACK[to] && observedList.indexOf(FALLBACK[to]) !== -1) {
-        to = FALLBACK[to];
+      to = mapTable[id];
+      if (observedList.indexOf(to) === -1 && fbTable[to] && observedList.indexOf(fbTable[to]) !== -1) {
+        to = fbTable[to];
         fallback = true;
       }
     } else if (id === "g1.ios.30tb.ai.pro.m") {
       if (!cfg.enable30tb) return null;
-      to = SKU_MAP[id];
-      if (observedList.indexOf(to) === -1 && FALLBACK[to] && observedList.indexOf(FALLBACK[to]) !== -1) {
-        to = FALLBACK[to];
+      to = mapTable[id];
+      if (observedList.indexOf(to) === -1 && fbTable[to] && observedList.indexOf(fbTable[to]) !== -1) {
+        to = fbTable[to];
         fallback = true;
       }
     } else {
@@ -341,7 +360,7 @@
         '</span><br><span style="color:#34D399;font-weight:600;">→ ' + escHtml(m.to) +
         '</span><span style="color:#A7B0C5;font-size:11px;margin-left:6px;">(' + escHtml(describeSku(m.to)) + ')</span></div>' +
         '<span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">x' + m.count +
-        (m.fallback ? ' · 75p' : '') + '</span></div>';
+        (m.fallback ? ' · FB' : '') + '</span></div>';
     });
     var sparkIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     var panel =
@@ -488,7 +507,7 @@
     Object.keys(mappings).sort().forEach(function (id) {
       var source = mappings[id];
       console.log("[g1-aio-v1] " + source.id + " -> " + source.to + " x" + source.count +
-        (source.fallback ? " fallback=75p" : ""));
+        (source.fallback ? " fallback=" + source.to : ""));
     });
   }
 
@@ -994,7 +1013,8 @@
       overlayPanel: true,
       notify: true,
       theme: "auto",
-      customRules: []
+      customRules: [],
+      customRulesOverride: false
     };
     try {
       if (typeof $persistentStore === "undefined" || typeof $persistentStore.read !== "function") {
@@ -1004,9 +1024,9 @@
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-      if (parsed.profile === "promo-90p" || parsed.profile === "hybrid-combo" ||
-          parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
-          parsed.profile === "custom-only") {
+      if (parsed.profile === "promo-90p" || parsed.profile === "v7.6-eft" ||
+          parsed.profile === "hybrid-combo" || parsed.profile === "ultra-1m-free" ||
+          parsed.profile === "ultra-free-probe" || parsed.profile === "custom-only") {
         defaults.profile = parsed.profile;
       }
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
@@ -1029,6 +1049,7 @@
         defaults.theme = parsed.theme;
       }
       defaults.customRules = sanitizeCustomRules(parsed.customRules);
+      if (parsed.customRulesOverride === true) defaults.customRulesOverride = true;
     } catch (error) {
       return defaults;
     }
