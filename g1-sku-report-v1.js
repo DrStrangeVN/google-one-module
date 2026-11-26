@@ -1,9 +1,15 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.8.2). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9 · Loon Optimized). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.8.2";
+  var VERSION = "aio-v2.9";
+  var IS_LOON = typeof $loon !== "undefined";
+  var RUNTIME_ID = IS_LOON ? "loon" :
+    (typeof $environment === "object" && $environment && $environment["surge-version"] ? "surge" : "proxy");
+  var RUNTIME_LABEL = IS_LOON ? "Loon (" + String($loon).slice(0, 60) + ")" :
+    RUNTIME_ID === "surge" ? "Surge " + String($environment["surge-version"]).slice(0, 24) :
+    "Shadowrocket / Proxy iOS";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -18,32 +24,33 @@
   var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,159}\.$/;
 
   var PRESETS = [
-    { id: "g1.2tb.ai.12months_ip_90p", label: "12T Giảm 90% (v7.5)" },
-    { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", label: "Pro 3T 99% (Gemini)" },
-    { id: "g1.ai.ultra.1month_eft.acq", label: "Ultra 30TB · 1T Free" },
-    { id: "g1.ai.ultra.3months_ip_75p.acq", label: "Ultra 30TB · 3T 75p" },
-    { id: "g1.20tb.1month_eft.acq", label: "Ultra 20TB · 1T Free" },
+    { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", label: "Pro 3T 99% (Đang sống)" },
+    { id: "g1.ios.20tb.m", label: "TR Ultra 20TB cũ (1.989 TRY)" },
+    { id: "g1.ios.30tb.m", label: "TR Ultra 30TB cũ (2.949 TRY)" },
+    { id: "g1.2tb.ai.12months_ip_90p", label: "12T 90p (Tắt promo)" },
+    { id: "g1.ai.ultra.1month_eft.acq", label: "Ultra 30TB · 1T Free (Khóa 26/11)" },
+    { id: "g1.ai.ultra.3months_ip_75p.acq", label: "Ultra 30TB · 3T 75p (Khóa 26/11)" },
     { id: "g1.2tb.ai.12months_eft.acq", label: "Pro 12T Free (.acq)" },
     { id: "g1.2tb.ai.18months_eft", label: "Pro 18T Free (Play)" }
   ];
 
   var IPHONE_PACKS = [
     {
-      id: "iphone-1-ultra-1m",
-      rank: "HẠNG 1 · 0đ / 1 THÁNG",
+      id: "iphone-1-pro-99p-slot20",
+      rank: "HẠNG 1 · ĐANG SỐNG · 1-SLOT",
       cls: "st-ok",
-      title: "Ultra 30TB · 1 tháng 0đ",
-      app: "Google App (chữ G) · hoặc Gmail / Photos / NotebookLM",
-      guide: "Dùng Gmail phụ sạch → bấm gói bất kỳ (ưu tiên Ultra 30TB) → kiểm tra giá 0đ trên StoreKit → hủy gia hạn ngay trong Apple Subscriptions. Có thanh nổi HUD.",
+      title: "Pro 3T 99% (1-Slot 20TB)",
+      app: "Google App (chữ G) → bấm nút Ultra 20TB",
+      guide: "Chỉ đổi duy nhất nút 20TB (g1.ios.20tb.m.v2 → com.google.gemini.2tb.ai.m.3month_ip_99p), tránh xung đột nhiều nút gây Purchase not completed. Giá 26/11: IN ₹9-10/T, ID Rp 3.000/T, TR ₺5,39-8,69/T, US $0,29/T, SG S$0,48/T; kèm 3 link mời AI Pro 4T trên one.google.com. Có thanh nổi HUD.",
       cfg: {
-        profile: "ultra-1m-free",
-        target2tb: "g1.ai.ultra.1month_eft.acq",
+        profile: "pro-99p-slot20",
+        target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
         mode: "auto",
-        rewriteScope: "ai",
+        rewriteScope: "extended",
         nativeMode: "scan",
-        enable2tb: true,
+        enable2tb: false,
         enable20tb: true,
-        enable30tb: true,
+        enable30tb: false,
         strictCatalog: false,
         overlayPanel: true,
         notify: true,
@@ -52,11 +59,11 @@
     },
     {
       id: "iphone-2-gemini-99p",
-      rank: "HẠNG 2 · GIẢM 99% / 3T",
+      rank: "HẠNG 2 · ĐANG SỐNG · v7.12",
       cls: "st-ok",
-      title: "AI Pro 2TB · 3 tháng giảm 99%",
-      app: "Bắt buộc mở App Gemini (iOS) → Upgrade",
-      guide: "Tự bật Phạm vi Mở rộng + Native Rewrite + Thông báo iOS. Bấm gói AI Pro 2TB → xem giá StoreKit (app Gemini dùng giao diện gốc nên không hiện thanh nổi HTML; nhìn banner thông báo iOS hoặc mở Studio; gốc ưu đãi Ấn Độ).",
+      title: "Pro 3T 99% (Nút Pro / Gemini)",
+      app: "Google App (nút 2TB) hoặc App Gemini (iOS) → Upgrade",
+      guide: "Chuẩn crhywun v7.12.0: chỉ đổi nhóm nút 2TB (g1.ios.2tb.*, g1.ios.ai.2tb.*, com.google.gemini.2tb.*) → com.google.gemini.2tb.ai.m.3month_ip_99p, tắt 20TB/30TB tránh mã chết. Tự bật Phạm vi Mở rộng + Native Rewrite + Thông báo iOS (trên Loon bấm banner mở thẳng Studio).",
       cfg: {
         profile: "promo-90p",
         target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
@@ -64,6 +71,28 @@
         rewriteScope: "extended",
         nativeMode: "rewrite",
         enable2tb: true,
+        enable20tb: false,
+        enable30tb: false,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    },
+    {
+      id: "iphone-3-tr-ultra-legacy",
+      rank: "HẠNG 3 · ĐANG SỐNG · TR ID",
+      cls: "st-info",
+      title: "TR Ultra 20TB + 30TB giá cũ",
+      app: "Google App (chữ G) · Apple ID Thổ Nhĩ Kỳ (TR)",
+      guide: "Đổi nút 20TB → g1.ios.20tb.m (1.989,99 TRY/tháng, mới v7.12.0) và nút 30TB → g1.ios.30tb.m (2.949,99 TRY/tháng); giữ nguyên nút 2TB. Dùng Apple ID vùng TR để kiểm tra giá cũ trên StoreKit. Có thanh nổi HUD.",
+      cfg: {
+        profile: "tr-ultra-legacy",
+        target2tb: "g1.2tb.ai.12months_ip_90p",
+        mode: "auto",
+        rewriteScope: "extended",
+        nativeMode: "scan",
+        enable2tb: false,
         enable20tb: true,
         enable30tb: true,
         strictCatalog: false,
@@ -73,12 +102,12 @@
       }
     },
     {
-      id: "iphone-3-pro-12m-90p",
-      rank: "HẠNG 3 · BỀN CẢ NĂM",
-      cls: "st-info",
-      title: "AI Pro 2TB · 12 tháng giảm 90%",
+      id: "iphone-4-pro-12m-90p",
+      rank: "HẠNG 4 · TẮT PROMO ($19.99)",
+      cls: "st-warn",
+      title: "Pro 12T 90p (Cảnh báo giá gốc)",
       app: "Google App (chữ G) → Quản lý Google One",
-      guide: "Chọn gói 2TB / AI Pro (~10% giá gốc suốt 12 tháng, có trả tiền thật nên ổn định nhất và ít lo rớt quyền). Có thanh nổi HUD.",
+      guide: "Cảnh báo 26/11: StoreKit vẫn hiện bảng thanh toán nhưng Google đang tạm tắt promo 90% nên thường báo giá gốc $19,99/tháng. Luôn xem kỹ giá StoreKit trước khi bấm mua; giữ sẵn để test khi mở lại promo.",
       cfg: {
         profile: "promo-90p",
         target2tb: "g1.2tb.ai.12months_ip_90p",
@@ -95,36 +124,14 @@
       }
     },
     {
-      id: "iphone-4-ultra-75p",
-      rank: "HẠNG 4 · DỰ PHÒNG v7.8",
-      cls: "st-warn",
-      title: "Ultra 20TB / 30TB · 3 tháng giảm 75%",
-      app: "Google App (chữ G) → Quản lý Google One",
-      guide: "Ép thẳng giảm 75% (trả 25% trong 3 tháng) cho nút Ultra 20TB & 30TB — bật ngay khi gói 0đ và 90p báo lỗi. Có thanh nổi HUD.",
+      id: "iphone-5-ultra-backup",
+      rank: "HẠNG 5 · ĐÃ KHÓA 26/11 · DỰ PHÒNG",
+      cls: "st-err",
+      title: "Ultra 1M Free / 75p Dự phòng",
+      app: "Google App (chữ G) · Dự phòng khi mở lại",
+      guide: "Cảnh báo 26/11: Các gói Ultra .acq (1M Free, 75p, 90p) đang bị khóa trên iOS (lỗi Purchase not completed). Giữ làm gói dự phòng: nút 2TB → Ultra 1M Free, nút 20TB/30TB → Ultra 3T 75p để test nhanh khi Google mở lại.",
       cfg: {
         profile: "ultra-75p",
-        target2tb: "g1.2tb.ai.12months_ip_90p",
-        mode: "auto",
-        rewriteScope: "ai",
-        nativeMode: "scan",
-        enable2tb: true,
-        enable20tb: true,
-        enable30tb: true,
-        strictCatalog: false,
-        overlayPanel: true,
-        notify: true,
-        customRulesOverride: false
-      }
-    },
-    {
-      id: "iphone-5-hybrid-combo",
-      rank: "HẠNG 5 · ĐA NĂNG",
-      cls: "st-info",
-      title: "Combo 2TB Free + Ultra 90p / 75p",
-      app: "Google App (chữ G) → Quản lý Google One",
-      guide: "Nút 2TB → Ultra 30TB 1 tháng 0đ; nút 20TB / 30TB giữ giảm 90% (tự lùi về 75%). Một lần mở trang thử được cả 2 nhóm ưu đãi. Có thanh nổi HUD.",
-      cfg: {
-        profile: "hybrid-combo",
         target2tb: "g1.ai.ultra.1month_eft.acq",
         mode: "auto",
         rewriteScope: "ai",
@@ -158,55 +165,61 @@
 
   var VAULT_GROUPS = [
     {
-      title: "iOS · Google AI Ultra 30TB Dùng thử miễn phí (_eft.acq)",
+      title: "Đang sống (26/11) · Gemini 99% & TR Ultra Giá Cũ (iOS)",
       items: [
-        { id: "g1.ai.ultra.1month_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "30TB · 1 tháng miễn phí (chuẩn v7.6 / gg-ultra-1M)" },
-        { id: "g1.ai.ultra.2months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "30TB · 2 tháng miễn phí" },
-        { id: "g1.ai.ultra.3months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "30TB · 3 tháng miễn phí" },
-        { id: "g1.ai.ultra.6months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "30TB · 6 tháng miễn phí" },
-        { id: "g1.ai.ultra.12months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "30TB · 12 tháng miễn phí" }
+        { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", tag: "Đang sống · 99%", cls: "st-ok", note: "AI Pro 2TB · 3 tháng giảm 99% (IN ₹9-10, ID Rp 3k, TR ₺5,39-8,69, US $0,29, SG S$0,48; 1-Slot 20TB trên Google App hoặc nút Pro/Gemini; +3 link mời 4T)" },
+        { id: "g1.ios.20tb.m", tag: "Đang sống · TR cũ", cls: "st-ok", note: "Ultra 20TB · Mã iOS cũ cho Apple ID TR (mới crhywun v7.12.0 · 1.989,99 TRY/tháng)" },
+        { id: "g1.ios.30tb.m", tag: "Đang sống · TR cũ", cls: "st-ok", note: "Ultra 30TB · Mã iOS cũ cho Apple ID TR (v7.10/v7.12 · 2.949,99 TRY/tháng)" }
       ]
     },
     {
-      title: "iOS & Play · AI Pro & Ultra 20TB Dùng thử (_eft)",
+      title: "Tắt promo / Đã khóa / Thử nghiệm · Intro Price Giảm 50% – 95% (_ip_)",
       items: [
-        { id: "g1.20tb.1month_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "Ultra 20TB · 1 tháng miễn phí (v7.6)" },
-        { id: "g1.20tb.3months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "Ultra 20TB · 3 tháng miễn phí" },
-        { id: "g1.20tb.12months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "Ultra 20TB · 12 tháng miễn phí" },
-        { id: "g1.2tb.ai.12months_eft.acq", tag: "iOS · FREE 0đ", cls: "st-ok", note: "AI Pro · 12 tháng miễn phí" },
-        { id: "g1.ai.pro.12months_eft", tag: "THỬ 12T 0đ", cls: "st-ok", note: "AI Pro / Ultra · 12 tháng miễn phí (thử nghiệm xinnyu)" },
-        { id: "g1.2tb.ai.18months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 18 tháng (Android Play ID, không có .acq)" },
-        { id: "g1.2tb.ai.15months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 15 tháng 0đ (Android Play ID, mới v8.0)" },
-        { id: "g1.2tb.ai.12months_eft", tag: "Play ID", cls: "st-warn", note: "AI Pro · 12 tháng 0đ (Android Play ID, không .acq)" },
-        { id: "g1.2tb.1year_eft", tag: "Play ID", cls: "st-warn", note: "AI Plus 2TB · 12 tháng 0đ (Android Play ID)" }
+        { id: "g1.2tb.ai.12months_ip_90p", tag: "Tắt promo · $19.99", cls: "st-warn", note: "AI Pro · 12 tháng giảm 90% (26/11: vẫn bật StoreKit nhưng tắt promo 90%, hiện giá gốc $19,99/tháng)" },
+        { id: "g1.20tb.3months_ip_90p.acq", tag: "Đã khóa 26/11 · 90%", cls: "st-err", note: "Ultra 20TB · 3 tháng giảm 90% (iOS .acq hiện lỗi Purchase not completed)" },
+        { id: "g1.20tb.3months_ip_75p.acq", tag: "Đã khóa 26/11 · 75%", cls: "st-err", note: "Ultra 20TB · 3 tháng giảm 75% (iOS .acq hiện lỗi Purchase not completed)" },
+        { id: "g1.ai.ultra.3months_ip_90p.acq", tag: "Đã khóa 26/11 · 90%", cls: "st-err", note: "Ultra 30TB · 3 tháng giảm 90% (iOS .acq hiện lỗi Purchase not completed)" },
+        { id: "g1.ai.ultra.3months_ip_75p.acq", tag: "Đã khóa 26/11 · 75%", cls: "st-err", note: "Ultra 30TB · 3 tháng giảm 75% (iOS .acq hiện lỗi Purchase not completed)" },
+        { id: "g1.20tb.3months_ip_80p", tag: "Thử nghiệm · 80%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 80%" },
+        { id: "g1.ios.ai.2tb.m.ip_3mo_75p.acq", tag: "iOS · 75%", cls: "st-warn", note: "AI 2TB · 3 tháng giảm 75% (sku-atlas thực tế)" },
+        { id: "g1.ios.helium.m.3month_ip_75p.acq", tag: "iOS · 75%", cls: "st-warn", note: "AI Plus 400GB · 3 tháng giảm 75% (sku-atlas thực tế)" },
+        { id: "g1.2tb.ai.2months_ip_50p", tag: "Thử nghiệm · 50%", cls: "st-info", note: "AI Pro · 2 tháng giảm 50% (sku-atlas thực tế)" },
+        { id: "g1.2tb.ai.1month_ip_95p.acq", tag: "iOS · 95%", cls: "st-info", note: "AI Pro · Tháng đầu giảm 95% (khách mới)" },
+        { id: "g1.helium.12months_ip_90p", tag: "Play ID", cls: "st-muted", note: "AI Plus 400GB · 12 tháng giảm 90% (Android Play ID)" },
+        { id: "g1.10tb.1month_ip_90p", tag: "Play ID · 90%", cls: "st-muted", note: "Pro 10TB · 1 tháng giảm 90% (Android Play)" },
+        { id: "g1.10tb.3months_ip_85p", tag: "Play ID · 85%", cls: "st-muted", note: "Pro 10TB · 3 tháng giảm 85% (Android Play)" }
       ]
     },
     {
-      title: "iOS, Gemini & Play · Intro Price Giảm 50% – 99% (_ip_)",
+      title: "Đã khóa 26/11 (Dự phòng) · Google AI Ultra 30TB Dùng thử (_eft.acq)",
       items: [
-        { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", tag: "Gemini · 99%", cls: "st-ok", note: "AI Pro 2TB · 3 tháng giảm 99% (mở trong app Gemini iOS)" },
-        { id: "g1.2tb.ai.12months_ip_90p", tag: "GIẢM 90%", cls: "st-info", note: "AI Pro · 12 tháng giảm 90% (v7.5/v7.6)" },
-        { id: "g1.20tb.3months_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 90%" },
-        { id: "g1.20tb.3months_ip_80p", tag: "GIẢM 80%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 80%" },
-        { id: "g1.20tb.3months_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "Ultra 20TB · 3 tháng giảm 75%" },
-        { id: "g1.ai.ultra.3months_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "Ultra 30TB · 3 tháng giảm 90%" },
-        { id: "g1.ai.ultra.3months_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "Ultra 30TB · 3 tháng giảm 75%" },
-        { id: "g1.ios.ai.2tb.m.ip_3mo_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "AI 2TB · 3 tháng giảm 75% (sku-atlas thực tế)" },
-        { id: "g1.ios.helium.m.3month_ip_75p.acq", tag: "iOS · GIẢM 75%", cls: "st-warn", note: "AI Plus 400GB · 3 tháng giảm 75% (sku-atlas thực tế)" },
-        { id: "g1.2tb.ai.2months_ip_50p", tag: "GIẢM 50%", cls: "st-info", note: "AI Pro · 2 tháng giảm 50% (sku-atlas thực tế)" },
-        { id: "g1.2tb.ai.1month_ip_95p.acq", tag: "iOS · GIẢM 95%", cls: "st-info", note: "AI Pro · Tháng đầu giảm 95% (khách mới)" },
-        { id: "g1.helium.12months_ip_90p", tag: "Play ID", cls: "st-warn", note: "AI Plus 400GB · 12 tháng giảm 90% (Android Play ID)" },
-        { id: "g1.10tb.1month_ip_90p", tag: "Play ID · 90%", cls: "st-warn", note: "Pro 10TB · 1 tháng giảm 90% (Android Play)" },
-        { id: "g1.10tb.3months_ip_85p", tag: "Play ID · 85%", cls: "st-warn", note: "Pro 10TB · 3 tháng giảm 85% (Android Play)" }
+        { id: "g1.ai.ultra.1month_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "30TB · 1 tháng miễn phí (chuẩn v7.6; hiện lỗi Purchase not completed trên iOS)" },
+        { id: "g1.ai.ultra.2months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "30TB · 2 tháng miễn phí (dự phòng khi mở lại)" },
+        { id: "g1.ai.ultra.3months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "30TB · 3 tháng miễn phí (dự phòng khi mở lại)" },
+        { id: "g1.ai.ultra.6months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "30TB · 6 tháng miễn phí (dự phòng khi mở lại)" },
+        { id: "g1.ai.ultra.12months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "30TB · 12 tháng miễn phí (dự phòng khi mở lại)" }
       ]
     },
     {
-      title: "Play & Chuẩn · Stacking, Gói Năm & Mã Cũ",
+      title: "Đã khóa 26/11 & Play ID · AI Pro & Ultra 20TB Dùng thử (_eft)",
       items: [
-        { id: "g1.ios.30tb.m", tag: "iOS · TR CŨ", cls: "st-info", note: "Ultra 30TB · Mã iOS cũ (v7.10 ghi nhận 2.949,99 TRY)" },
-        { id: "g1.2tb.ai.subs_variant", tag: "Play ID", cls: "st-warn", note: "AI Pro · Stacking variant (Android Play)" },
+        { id: "g1.20tb.1month_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "Ultra 20TB · 1 tháng miễn phí (v7.6; hiện lỗi Purchase not completed trên iOS)" },
+        { id: "g1.20tb.3months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "Ultra 20TB · 3 tháng miễn phí (dự phòng khi mở lại)" },
+        { id: "g1.20tb.12months_eft.acq", tag: "Đã khóa 26/11 · 0đ", cls: "st-err", note: "Ultra 20TB · 12 tháng miễn phí (dự phòng khi mở lại)" },
+        { id: "g1.2tb.ai.12months_eft.acq", tag: "iOS · Dự phòng", cls: "st-warn", note: "AI Pro · 12 tháng miễn phí (.acq)" },
+        { id: "g1.ai.pro.12months_eft", tag: "Thử nghiệm · 12T", cls: "st-info", note: "AI Pro / Ultra · 12 tháng miễn phí (thử nghiệm xinnyu)" },
+        { id: "g1.2tb.ai.18months_eft", tag: "Play ID", cls: "st-muted", note: "AI Pro · 18 tháng (Android Play ID, không có .acq)" },
+        { id: "g1.2tb.ai.15months_eft", tag: "Play ID", cls: "st-muted", note: "AI Pro · 15 tháng 0đ (Android Play ID, mới v8.0)" },
+        { id: "g1.2tb.ai.12months_eft", tag: "Play ID", cls: "st-muted", note: "AI Pro · 12 tháng 0đ (Android Play ID, không .acq)" },
+        { id: "g1.2tb.1year_eft", tag: "Play ID", cls: "st-muted", note: "AI Plus 2TB · 12 tháng 0đ (Android Play ID)" }
+      ]
+    },
+    {
+      title: "Play & Chuẩn · Stacking & Gói Năm",
+      items: [
+        { id: "g1.2tb.ai.subs_variant", tag: "Play ID", cls: "st-muted", note: "AI Pro · Stacking variant (Android Play)" },
         { id: "g1.2tb.ai.annual", tag: "NĂM", cls: "st-muted", note: "AI Pro · Gói năm tiêu chuẩn" },
-        { id: "g1.2tb.ai.annual_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "AI Pro · Gói năm giảm 90%" }
+        { id: "g1.2tb.ai.annual_ip_90p.acq", tag: "iOS · Dự phòng", cls: "st-warn", note: "AI Pro · Gói năm giảm 90%" }
       ]
     }
   ];
@@ -340,6 +353,14 @@
     return out;
   }
 
+  function isValidProfile(profile) {
+    return profile === "pro-99p-slot20" || profile === "tr-ultra-legacy" ||
+      profile === "promo-90p" || profile === "ultra-75p" ||
+      profile === "v7.6-eft" || profile === "hybrid-combo" ||
+      profile === "ultra-1m-free" || profile === "ultra-free-probe" ||
+      profile === "custom-only";
+  }
+
   function sanitizeConfig(parsed) {
     var defaults = {
       schemaVersion: 1,
@@ -359,10 +380,7 @@
       customRulesOverride: false
     };
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-    if (parsed.profile === "promo-90p" || parsed.profile === "ultra-75p" ||
-        parsed.profile === "v7.6-eft" || parsed.profile === "hybrid-combo" ||
-        parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
-        parsed.profile === "custom-only") {
+    if (isValidProfile(parsed.profile)) {
       defaults.profile = parsed.profile;
     }
     if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
@@ -444,13 +462,12 @@
 
     var cfg = loadConfig();
     if (query.action === "profile") {
-      if (query.profile === "promo-90p" || query.profile === "ultra-75p" ||
-          query.profile === "v7.6-eft" || query.profile === "hybrid-combo" ||
-          query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe" ||
-          query.profile === "custom-only") {
+      if (isValidProfile(query.profile)) {
         cfg.profile = query.profile;
         if (saveConfig(cfg)) {
           var pNames = {
+            "pro-99p-slot20": "Pro 3T 99% · 1-Slot 20TB (Đang sống)",
+            "tr-ultra-legacy": "TR Ultra 20TB + 30TB giá cũ (v7.12)",
             "promo-90p": "Promo 90p / 75p (v7.5)",
             "ultra-75p": "Ultra 75p cố định (v7.8)",
             "v7.6-eft": "Ultra 1M Free + Fallback 90p (v7.6)",
@@ -659,10 +676,7 @@
         return;
       }
       cfg.target2tb = candidate;
-      if (query.profile === "promo-90p" || query.profile === "ultra-75p" ||
-          query.profile === "v7.6-eft" || query.profile === "hybrid-combo" ||
-          query.profile === "ultra-1m-free" || query.profile === "ultra-free-probe" ||
-          query.profile === "custom-only") {
+      if (isValidProfile(query.profile)) {
         cfg.profile = query.profile;
       }
       if (query.mode === "auto" || query.mode === "scan-only" || query.mode === "rewrite-only") {
@@ -699,6 +713,8 @@
     return /(?:acq|_99p|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_25p|_10p|_ip\.|_eft|subs_variant|12months|annual|3months|6months|2months|1month)/i.test(id);
   }
   function describeSku(id) {
+    if (id === "g1.ios.20tb.m") return "Ultra 20TB · Giá cũ TR (1.989,99 TRY)";
+    if (id === "g1.ios.30tb.m") return "Ultra 30TB · Giá cũ TR (2.949,99 TRY)";
     var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
       /20tb/i.test(id) ? "Ultra 20TB" :
       /10tb/i.test(id) ? "Pro 10TB" :
@@ -729,7 +745,7 @@
       if (withTime) {
         out.lastSeen = text(row.lastSeen, 32);
       } else {
-        out.to = sku(row.to) || ((row.id.indexOf("g1.ios.2tb.") === 0 || row.id.indexOf("g1.ios.ai.2tb.") === 0) ? defaultTarget || "" : "");
+        out.to = sku(row.to) || ((row.id.indexOf("g1.ios.2tb.") === 0 || row.id.indexOf("g1.ios.ai.2tb.") === 0 || row.id.indexOf("com.google.gemini.2tb.") === 0) ? defaultTarget || "" : "");
         out.fallback = row.fallback === true;
       }
       return out;
@@ -822,7 +838,7 @@
   var matchedFrom = rows(testRaw.matchedFrom, false, recordedTarget);
   if (!recordedTarget) {
     matchedFrom.some(function (row) {
-      if (row.id.indexOf("g1.ios.2tb.") === 0 && row.to) {
+      if ((row.id.indexOf("g1.ios.2tb.") === 0 || row.id.indexOf("com.google.gemini.2tb.") === 0) && row.to) {
         recordedTarget = row.to;
         return true;
       }
@@ -841,6 +857,7 @@
   var report = {
     schemaVersion: 1,
     reportVersion: VERSION,
+    runtime: RUNTIME_ID,
     configuredTarget: CONFIGURED_TARGET,
     storageAvailable: storageAvailable,
     config: currentConfig,
@@ -986,11 +1003,13 @@
     statuses[report.test.status] : "Chưa chạy";
 
   var profileOptions = [
-    { id: "promo-90p", label: "Promo 90p / 75p", desc: "2TB (12T 90p / tùy chỉnh) + 20TB / 30TB ưu đãi" },
-    { id: "ultra-75p", label: "Ultra 75p cố định (v7.8)", desc: "20/30TB → 3 tháng giảm 75% (trả 25%), khi 1M Free/90p lỗi" },
-    { id: "v7.6-eft", label: "v7.6 Free + FB 90p", desc: "20/30TB → 1 tháng Free (.acq) tự fallback 90p" },
-    { id: "hybrid-combo", label: "Combo 2TB Free + 90p", desc: "2TB → Ultra 1M Free; 20TB / 30TB giữ 90p / 75p" },
-    { id: "ultra-1m-free", label: "Ultra 30TB · 1M Free", desc: "Mọi nút iOS → g1.ai.ultra.1month_eft.acq" },
+    { id: "pro-99p-slot20", label: "Pro 3T 99% · 1-Slot 20TB", desc: "Đang sống: Chỉ đổi nút 20TB → Pro 3T 99% (tránh xung đột nhiều nút)" },
+    { id: "tr-ultra-legacy", label: "TR Ultra 20TB+30TB cũ (v7.12)", desc: "Đang sống (TR ID): 20TB → 1.989,99 TRY · 30TB → 2.949,99 TRY" },
+    { id: "promo-90p", label: "Promo 90p / 75p", desc: "2TB (theo mã đích chọn) + 20TB / 30TB ưu đãi 90p/75p" },
+    { id: "ultra-75p", label: "Ultra 75p cố định (v7.8)", desc: "Dự phòng: 20/30TB → 3 tháng giảm 75% (trả 25%)" },
+    { id: "v7.6-eft", label: "v7.6 Free + FB 90p", desc: "Dự phòng: 20/30TB → 1 tháng Free (.acq) tự fallback 90p" },
+    { id: "hybrid-combo", label: "Combo 2TB Free + 90p", desc: "Dự phòng: 2TB → Ultra 1M Free; 20TB / 30TB giữ 90p / 75p" },
+    { id: "ultra-1m-free", label: "Ultra 30TB · 1M Free", desc: "Dự phòng: Mọi nút iOS → g1.ai.ultra.1month_eft.acq" },
     { id: "ultra-free-probe", label: "Dò 11 nút Free", desc: "Thử đồng thời 11 gói dùng thử 1 / 2 / 3 / 6 / 12T" },
     { id: "custom-only", label: "Chỉ Custom Rules", desc: "Chỉ chạy các cặp nút bạn tự định nghĩa bên dưới" }
   ];
@@ -1182,12 +1201,12 @@
         return '<label class=nav-item for="tab-' + item.id + '">' + item.icon + '<span>' + item.label + '</span></label>';
       }).join("") +
     '</nav></div>',
-    '<div class=side-foot><div class=dim>Profile: <strong>' + escape(activeProfileObj.label) + '</strong><br>Native: <code>' + escape(currentConfig.nativeMode) + '</code> · Strict: <code>' + (currentConfig.strictCatalog ? "ON" : "OFF") + '</code></div>',
+    '<div class=side-foot><div class=dim>Môi trường: <strong>' + escape(RUNTIME_LABEL) + '</strong><br>Profile: <strong>' + escape(activeProfileObj.label) + '</strong><br>Native: <code>' + escape(currentConfig.nativeMode) + '</code> · Strict: <code>' + (currentConfig.strictCatalog ? "ON" : "OFF") + '</code></div>',
     '<form method=get action="' + ROOT + '"><button type=submit name=format value=json class="btn btn-pri" style="width:100%">' + ICONS.download + '<span>Xuất JSON</span></button></form>',
     '</div></aside>',
 
     '<main class=main>',
-    '<header class=topbar><div class=top-title><h1>ALL IN ONE_V1</h1><span class=badge>Script nội bộ đang hoạt động · ' + VERSION + '</span></div>',
+    '<header class=topbar><div class=top-title><h1>ALL IN ONE_V1</h1><span class=badge>' + (IS_LOON ? 'Loon đang hoạt động · ' : 'Script nội bộ đang hoạt động · ') + VERSION + '</span></div>',
     '<nav class=actions aria-label="Thao tác nhanh"><form method=get action="' + ROOT + '"><button type=submit name=format value=json class=btn-pri>' + ICONS.download + '<span>Xuất JSON</span></button></form><a class="btn btn-sec" href="' + ROOT + '?tab=' + activeTab + '">' + ICONS.refresh + '<span>Làm mới</span></a></nav></header>',
 
     actionMessage ? '<p class="alert alert-ok">' + escape(actionMessage) + '</p>' : "",
@@ -1203,12 +1222,12 @@
     '<div class=kpi><div class=kpi-k>Khớp thành công gần nhất</div><div class=kpi-v>' + (lastSuccess ? (lastSuccess.hitCount + ' vị trí · ' + escape(lastSuccess.profile)) : 'Chưa có') + '</div></div>',
     '</div>',
 
-    '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Chọn 1 chạm là chạy ngay)</h2>',
+    '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Cập nhật 26/11 · #1–#3 Đang sống)</h2>',
     '<p class=dim>Chạm 1 thẻ là tự cấu hình đầy đủ (Profile, Đích 2TB, Phạm vi URL &amp; Native); sau đó mở đúng ứng dụng ghi trên thẻ để kiểm tra StoreKit. Bạn cũng có thể đổi trực tiếp 5 gói này ngay trên thanh nổi trong Google App (tự tải lại tại chỗ).</p>',
     quickPacksHtml, '</div>',
 
     '<div class=card><h2>Bảng điều khiển nhanh</h2>',
-    '<h3>1. Chọn Profile mapping (7 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
+    '<h3>1. Chọn Profile mapping (9 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
     '<h3>2. Chế độ hoạt động</h3><div class=seg>' + modeButtons + '</div>',
     '<h3>3. Đổi nhanh mã đích 2TB (khi dùng Promo 90p)</h3><div class=pill-row>' + presetButtons + '</div>',
 
@@ -1280,8 +1299,8 @@
 
     /* ---------- TAB 2: SKU VAULT ---------- */
     '<section class=pane id=pane-vault>',
-    '<div class=card><h2>Kho SKU Cộng Đồng (32 mã chuẩn · 1 chạm để gán)</h2>',
-    '<p class=dim>Phân biệt rõ mã <strong>iOS (<code>*.acq</code>)</strong> và mã <strong>Android Play (<code>Play ID</code>)</strong>. Lưu ý: KHÔNG bật MITM cho <code>*.apple.com</code> hoặc <code>*.icloud.com</code> để tránh lỗi StoreKit khi thanh toán.</p>',
+    '<div class=card><h2>Kho SKU Cộng Đồng (33 mã chuẩn · Cập nhật 26/11)</h2>',
+    '<p class=dim>Gắn nhãn trạng thái thực tế ngày <strong>26/11</strong> (<strong>Đang sống</strong> / <strong>Tắt promo</strong> / <strong>Đã khóa 26/11</strong>) và phân biệt rõ mã <strong>iOS (<code>*.acq</code>)</strong> với mã <strong>Android Play (<code>Play ID</code>)</strong>. Lưu ý: KHÔNG bật MITM cho <code>*.apple.com</code> hoặc <code>*.icloud.com</code> để tránh lỗi StoreKit khi thanh toán.</p>',
     vaultHtml, '</div></section>',
 
     /* ---------- TAB 3: SCANNED SKUS ---------- */
@@ -1301,12 +1320,19 @@
 
     /* ---------- TAB 4: DIAGNOSTICS ---------- */
     '<section class=pane id=pane-diag>',
-    '<div class=card><h2>Mẹo xử lý khi báo "Purchase not completed"</h2>',
+    '<div class=card><h2>Checklist tối ưu cho Loon (iOS) · <span class="st-pill ' + (IS_LOON ? 'st-ok' : 'st-info') + '">' + escape(RUNTIME_LABEL) + '</span></h2>',
     '<ol class=dim style="margin:6px 0 0;padding-left:20px;line-height:1.65;">',
-    '<li>Đổi sang <strong>Gmail phụ sạch</strong> chưa từng đăng ký Google One (nguyên nhân phổ biến nhất khi thanh nổi đã khớp SKU).</li>',
+    '<li>Bật đủ cả 3 công tắc trên Loon: <strong>MITM</strong>, <strong>Rewrite</strong> và <strong>Script</strong>; cài và tin cậy chứng chỉ gốc trong Cài đặt iOS.</li>',
+    '<li>Chỉ bật duy nhất 1 plugin Google One (<code>G1 ALL IN ONE_V1</code>); tắt các plugin cũ (<code>G1 All-in-One</code>, <code>G1 ACQ</code>) để tránh chạy đè.</li>',
+    '<li>Plugin đã gắn rule chặn gộp QUIC <code>AND,((DOMAIN-SUFFIX,google.com),(PROTOCOL,UDP)),REJECT</code>. Sau khi bấm <strong>Cập nhật plugin</strong> trong Loon, hãy vuốt đóng hẳn Google App / App Gemini rồi mở lại để xả kết nối HTTP/3 cũ.</li>',
+    '<li>Khi chạy trên Loon, chạm trực tiếp vào banner <strong>Thông báo iOS</strong> (hoặc nút mở liên kết trong trang Plugin) để nhảy thẳng vào Studio này.</li>',
+    '</ol></div>',
+    '<div class=card><h2>Mẹo xử lý khi báo "Purchase not completed" (Cập nhật 26/11)</h2>',
+    '<ol class=dim style="margin:6px 0 0;padding-left:20px;line-height:1.65;">',
+    '<li>Với <strong>Pro 3T 99%</strong>, hãy ưu tiên gói <strong>#1 (1-Slot 20TB)</strong> để chỉ đổi duy nhất nút 20TB (tránh xung đột nhiều nút trên StoreKit) và dùng <strong>Gmail phụ sạch</strong> chưa từng đăng ký Google One.</li>',
+    '<li>Tình trạng iOS ngày <strong>26/11</strong>: các mã Ultra <code>.acq</code> (1M Free, 75p, 90p) đang bị khóa và <code>12T 90p</code> tạm tắt giảm giá (<code>$19,99</code>). Hãy dùng <strong>#1 / #2 (Pro 3T 99%)</strong> hoặc <strong>#3 (TR Ultra 20TB+30TB giá cũ)</strong> trên Apple ID Thổ Nhĩ Kỳ.</li>',
     '<li>Nếu cùng 1 Apple ID đã dùng ~3 lượt bị kẹt trên app Google chính, chuyển sang đăng ký từ app Google khác (<strong>Gemini</strong>, <strong>Google One</strong>, <strong>Gmail</strong>, <strong>Google Photos</strong>, <strong>NotebookLM</strong>).</li>',
-    '<li>Đảm bảo Apple ID đã liên kết thẻ hợp lệ, <strong>KHÔNG</strong> bật MITM cho <code>*.apple.com</code> / <code>*.icloud.com</code>, và hủy tự động gia hạn ngay sau khi kích hoạt gói 1 tháng 0đ.</li>',
-    '<li>Nếu đã dùng Gmail sạch mà cả <strong>1M Free</strong> và <strong>90p</strong> đều báo lỗi (do Google tạm khóa ưu đãi đó), hãy đổi Profile sang <strong>Ultra 75p cố định (v7.8)</strong> để thử gói giảm 75% (trả 25% trong 3 tháng).</li>',
+    '<li>Đảm bảo Apple ID đã liên kết thẻ hợp lệ và <strong>KHÔNG</strong> bật MITM cho <code>*.apple.com</code> / <code>*.icloud.com</code>. Sau khi mua <strong>Pro 3T 99%</strong> thành công, vào <code>one.google.com</code> kiểm tra thêm <strong>3 link mời AI Pro 4 tháng</strong>.</li>',
     '</ol></div>',
     '<div class=card><h2>Lịch sử 10 lần ghi đè gần nhất</h2>' + recentRewriteTable(report.test.recentRewrites) + '</div>',
     '<div class=card><h2>Chẩn đoán 10 response quét gần nhất</h2>',
@@ -1319,6 +1345,9 @@
 
     /* ---------- TAB 5: SYSTEM ---------- */
     '<section class=pane id=pane-system>',
+    '<div class=card><h2>Môi trường Proxy đang chạy</h2>',
+    '<p class=dim>Phát hiện: <strong>' + escape(RUNTIME_LABEL) + '</strong> · Phiên bản Studio: <code>' + VERSION + '</code>' +
+      (IS_LOON ? ' · Hỗ trợ chạm thông báo mở thẳng Studio (<code>openUrl</code>) và rule QUIC 2 vế chuẩn Loon.' : '') + '</p></div>',
     '<div class=card><h2>Giao diện &amp; Chủ đề (Minimal Specular Liquid Glass)</h2>',
     '<div class=pill-row>',
     '<a class="pill' + (currentConfig.theme === "auto" ? " active" : "") + '" href="' + ROOT + '?action=theme&theme=auto&tab=system">Tự động theo iOS</a>',

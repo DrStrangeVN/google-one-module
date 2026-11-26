@@ -60,11 +60,16 @@ function run(name, options = {}) {
     },
     console: { log: value => logs.push(String(value)) }
   };
+  if (options.loon) {
+    context.$loon = options.loon;
+  }
   if (options.notificationAvailable !== false) {
     context.$notification = {
-      post(title, subtitle, message) {
+      post(title, subtitle, message, attach) {
         if (options.notificationThrows) throw new Error("notification failure");
-        notifications.push({ title, subtitle, message });
+        notifications.push(attach !== undefined
+          ? { title, subtitle, message, attach: JSON.parse(JSON.stringify(attach)) }
+          : { title, subtitle, message });
       }
     };
   }
@@ -803,7 +808,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.8.2");
+  assert.equal(scan.version, "g1-aio-v2.9");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -975,6 +980,9 @@ test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC 
         assert.match(content, /^AND,\(\(DOMAIN,one\.google\.com\),\(PROTOCOL,UDP\)\),REJECT$/m);
         assert.match(content, /^AND,\(\(DOMAIN-SUFFIX,google\.com\),\(PROTOCOL,UDP\)\),REJECT$/m);
         assert.match(content, /^AND,\(\(DOMAIN,subscriptionsmobile-pa\.googleapis\.com\),\(PROTOCOL,UDP\)\),REJECT$/m);
+        assert.match(content, /^#!openUrl=https:\/\/one\.google\.com\/g1-sku-report$/m);
+        assert.match(content, /^#!tag=/m);
+        assert.match(content, /^#!date=/m);
         assert(!content.includes("max-size="));
         assert(content.includes("enable=true"));
       } else {
@@ -1086,8 +1094,8 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.8.2"));
-  assert(studioHtml.includes("Kho SKU Cộng Đồng (32 mã chuẩn"));
+  assert(studioHtml.includes("aio-v2.9"));
+  assert(studioHtml.includes("Kho SKU Cộng Đồng (33 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
   assert(studioHtml.includes("g1.20tb.3months_ip_80p"));
@@ -1096,6 +1104,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(studioHtml.includes("g1.ios.ai.2tb.m.ip_3mo_75p.acq"));
   assert(studioHtml.includes("g1.10tb.1month_ip_90p"));
   assert(studioHtml.includes("com.google.gemini.2tb.ai.m.3month_ip_99p"));
+  assert(studioHtml.includes("g1.ios.20tb.m"));
   assert(studioHtml.includes("g1.ios.30tb.m"));
   assert(studioHtml.includes("Map nút 30TB"));
   assert(studioHtml.includes("Purchase not completed"));
@@ -1106,7 +1115,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.8.2");
+  assert.equal(jsonOut.reportVersion, "aio-v2.9");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1341,16 +1350,16 @@ test("ALL IN ONE_V1 v2.6 provides Top 5 1-tap iPhone quick packs and /u/0/* exte
   });
   assert.deepEqual(JSON.parse(u0Res.payload.body), [GEMINI_99P]);
 
-  // 2. Pack #1 & #4 + invalid pack error check
+  // 2. Pack #1 & #5 + invalid pack error check
   run("g1-sku-report-v1.js", {
-    url: REPORT + "?action=quick&pack=iphone-1-ultra-1m&tab=studio",
+    url: REPORT + "?action=quick&pack=iphone-1-pro-99p-slot20&tab=studio",
     storage
   });
-  assert.equal(get(storage, CONFIG_KEY).profile, "ultra-1m-free");
-  assert.equal(get(storage, CONFIG_KEY).rewriteScope, "ai");
+  assert.equal(get(storage, CONFIG_KEY).profile, "pro-99p-slot20");
+  assert.equal(get(storage, CONFIG_KEY).rewriteScope, "extended");
 
   run("g1-sku-report-v1.js", {
-    url: REPORT + "?action=quick&pack=iphone-4-ultra-75p&tab=studio",
+    url: REPORT + "?action=quick&pack=iphone-5-ultra-backup&tab=studio",
     storage
   });
   assert.equal(get(storage, CONFIG_KEY).profile, "ultra-75p");
@@ -1441,11 +1450,11 @@ test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <b
   assert(!res0.payload.body.includes("radial-gradient"));
   assert(!/<script\b/i.test(res0.payload.body));
   for (const packId of [
-    "iphone-1-ultra-1m",
+    "iphone-1-pro-99p-slot20",
     "iphone-2-gemini-99p",
-    "iphone-3-pro-12m-90p",
-    "iphone-4-ultra-75p",
-    "iphone-5-hybrid-combo"
+    "iphone-3-tr-ultra-legacy",
+    "iphone-4-pro-12m-90p",
+    "iphone-5-ultra-backup"
   ]) {
     assert(res0.payload.body.includes("action=quick&amp;pack=" + packId));
   }
@@ -1483,7 +1492,7 @@ test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <b
   // 4. Pack #1 returns 200 text/html with <meta http-equiv="refresh" ...> back to clean Google One URL
   const backUrl = "https://one.google.com/ai?hl=vi";
   const bounceRes1 = run("g1-sku-report-v1.js", {
-    url: REPORT + "?action=quick&pack=iphone-1-ultra-1m&back=" + encodeURIComponent(backUrl),
+    url: REPORT + "?action=quick&pack=iphone-1-pro-99p-slot20&back=" + encodeURIComponent(backUrl),
     storage
   });
   assert.equal(bounceRes1.payload.response.status, 200);
@@ -1491,7 +1500,7 @@ test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <b
   assert(bounceRes1.payload.response.body.includes('<meta http-equiv="refresh" content="0;url=https://one.google.com/ai?hl=vi">'));
   assert(!bounceRes1.payload.response.body.includes("_g1ts"));
   assert(!/<script\b/i.test(bounceRes1.payload.response.body));
-  assert.equal(get(storage, CONFIG_KEY).profile, "ultra-1m-free");
+  assert.equal(get(storage, CONFIG_KEY).profile, "pro-99p-slot20");
 
   // 5. Pack #2 returns 200 confirmation card mentioning App Gemini (iOS) WITHOUT meta-refresh
   const confirmPack2 = run("g1-sku-report-v1.js", {
@@ -1534,11 +1543,284 @@ test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <b
     "https://one.google.com/ai\r\nX-Inject: 1"
   ]) {
     const safeRes = run("g1-sku-report-v1.js", {
-      url: REPORT + "?action=quick&pack=iphone-1-ultra-1m&back=" + encodeURIComponent(badBack),
+      url: REPORT + "?action=quick&pack=iphone-1-pro-99p-slot20&back=" + encodeURIComponent(badBack),
       storage
     });
     assert.equal(safeRes.payload.response.status, 200);
     assert.equal(safeRes.payload.response.headers.Location, undefined);
     assert(!safeRes.payload.response.body.includes('http-equiv="refresh"'));
   }
+});
+
+test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR legacy 20TB+30TB & 33-SKU Vault status", () => {
+  const GEMINI_SRC = "com.google.gemini.2tb.ai.m";
+  const GEMINI_99P = "com.google.gemini.2tb.ai.m.3month_ip_99p";
+  const AI_2TB = "g1.ios.ai.2tb.m.ip_1mo_90p.acq";
+  const TR_20TB = "g1.ios.20tb.m";
+  const TR_30TB = "g1.ios.30tb.m";
+  const storage = new Map();
+
+  // 1. Pack #1: Single-slot conflict-free 20TB -> Pro 3T 99% (leaves 2TB & 30TB completely untouched!)
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-1-pro-99p-slot20&tab=studio",
+    storage
+  });
+  const cfg1 = get(storage, CONFIG_KEY);
+  assert.equal(cfg1.profile, "pro-99p-slot20");
+  assert.equal(cfg1.rewriteScope, "extended");
+  assert.equal(cfg1.enable20tb, true);
+  assert.equal(cfg1.enable2tb, false);
+  assert.equal(cfg1.enable30tb, false);
+
+  const p1Res = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/u/0/plans?hl=vi",
+    body: JSON.stringify([SOURCE, AI_2TB, GEMINI_SRC, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(p1Res.payload.body), [SOURCE, AI_2TB, GEMINI_SRC, GEMINI_99P, THIRTY]);
+  assert.equal(get(storage, TEST_KEY).hitCount, 1);
+  assert.equal(get(storage, TEST_KEY).target, GEMINI_99P);
+
+  // Edge case: even if enable2tb & enable30tb are turned ON under pro-99p-slot20, ONLY 20TB rewrites; turning enable20tb OFF disables it
+  storage.set(CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "pro-99p-slot20", mode: "auto", rewriteScope: "extended",
+    enable2tb: true, enable20tb: false, enable30tb: true, overlayPanel: false, notify: false
+  }));
+  const p1Off = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/plans",
+    body: JSON.stringify([SOURCE, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(p1Off.payload, {});
+
+  // 2. Pack #2: crhywun v7.12.0 style (rewrites 2TB prefixes -> 99p, leaves 20TB/30TB untouched!)
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-2-gemini-99p&tab=studio",
+    storage
+  });
+  const cfg2 = get(storage, CONFIG_KEY);
+  assert.equal(cfg2.enable2tb, true);
+  assert.equal(cfg2.enable20tb, false);
+  assert.equal(cfg2.enable30tb, false);
+  const p2Res = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/u/0/ai?hl=vi",
+    body: JSON.stringify([SOURCE, AI_2TB, GEMINI_SRC, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(p2Res.payload.body), [GEMINI_99P, GEMINI_99P, GEMINI_99P, TWENTY, THIRTY]);
+
+  // 3. Pack #3: TR Ultra 20TB + 30TB legacy pricing (leaves 2TB untouched!)
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-3-tr-ultra-legacy&tab=studio",
+    storage
+  });
+  const cfg3 = get(storage, CONFIG_KEY);
+  assert.equal(cfg3.profile, "tr-ultra-legacy");
+  assert.equal(cfg3.rewriteScope, "extended");
+  const p3Res = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/u/0/plans",
+    body: JSON.stringify([SOURCE, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(p3Res.payload.body), [SOURCE, TR_20TB, TR_30TB]);
+  assert.equal(get(storage, TEST_KEY).target, "tr-legacy-20tb-30tb");
+
+  // Edge case: TR legacy respects enable20tb=false and customRulesOverride=true
+  storage.set(CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, profile: "tr-ultra-legacy", mode: "auto", rewriteScope: "extended",
+    enable20tb: false, enable30tb: true, overlayPanel: false, notify: false,
+    customRulesOverride: true,
+    customRules: [{ from: THIRTY, to: GEMINI_99P, match: "exact", enabled: true }]
+  }));
+  const p3Override = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/plans",
+    body: JSON.stringify([TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(p3Override.payload.body), [TWENTY, GEMINI_99P]);
+
+  // 4. Pack #4 & Pack #5 + action=profile & action=save for new profiles + Native Protobuf single-slot
+  const profSlot = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=pro-99p-slot20",
+    storage
+  }).payload.response.body;
+  assert(profSlot.includes("Pro 3T 99% · 1-Slot 20TB"));
+  assert(!profSlot.includes("undefined"));
+  assert.equal(get(storage, CONFIG_KEY).profile, "pro-99p-slot20");
+
+  const profTr = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=tr-ultra-legacy",
+    storage
+  }).payload.response.body;
+  assert(profTr.includes("TR Ultra 20TB + 30TB giá cũ"));
+  assert(!profTr.includes("undefined"));
+  assert.equal(get(storage, CONFIG_KEY).profile, "tr-ultra-legacy");
+
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=save&profile=pro-99p-slot20&mode=auto&target2tb=" + encodeURIComponent(GEMINI_99P) + "&scope=extended&native=rewrite&e20tb=1",
+    storage
+  });
+  assert.equal(get(storage, CONFIG_KEY).profile, "pro-99p-slot20");
+  assert.equal(get(storage, CONFIG_KEY).nativeMode, "rewrite");
+
+  // Native Protobuf rewrite with pro-99p-slot20 rewrites ONLY 20TB and leaves 30TB untouched
+  const nativeMsg = Buffer.concat([
+    makeProtoField(1, 2, Buffer.from(TWENTY, "ascii")),
+    makeProtoField(2, 2, Buffer.from(THIRTY, "ascii"))
+  ]);
+  const nativePayload = new Uint8Array(makeGrpcFrame(0, nativeMsg));
+  const nativeSlotRes = run("g1-all-in-one-v1.js", {
+    url: "https://subscriptionsmobile-pa.googleapis.com/$rpc/google.internal.subscriptions.mobile.v1.SubscriptionsApiMobileService/GetDynamicStorefrontInfo?",
+    body: nativePayload,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage
+  });
+  assert(nativeSlotRes.binaryBody instanceof Uint8Array);
+  const nativeInspect = new Map();
+  run("g1-all-in-one-v1.js", {
+    url: "https://subscriptionsmobile-pa.googleapis.com/$rpc/google.internal.subscriptions.mobile.v1.SubscriptionsApiMobileService/GetDynamicStorefrontInfo?",
+    body: nativeSlotRes.binaryBody,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage: nativeInspect
+  });
+  assert.deepEqual(get(nativeInspect, SCAN_KEY).skus.map(s => s.id), [GEMINI_99P, THIRTY]);
+
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-4-pro-12m-90p&tab=studio",
+    storage
+  });
+  assert.equal(get(storage, CONFIG_KEY).profile, "promo-90p");
+  assert.equal(get(storage, CONFIG_KEY).target2tb, TARGET);
+
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-5-ultra-backup&tab=studio",
+    storage
+  });
+  const p5Res = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi",
+    body: JSON.stringify([SOURCE, TWENTY, THIRTY]),
+    storage
+  });
+  assert.deepEqual(JSON.parse(p5Res.payload.body), [
+    "g1.ai.ultra.1month_eft.acq",
+    TWENTY_FALLBACK,
+    THIRTY_FALLBACK
+  ]);
+
+  // 5. Verify Vault has EXACTLY 33 unique SKUs, includes g1.ios.20tb.m, live status tags, strict CSP & zero emojis
+  const studioHtml = run("g1-sku-report-v1.js", { url: REPORT + "?tab=vault", storage }).payload.response.body;
+  const vaultSlice = studioHtml.slice(studioHtml.indexOf('id=pane-vault'), studioHtml.indexOf('id=pane-scanned'));
+  const vaultIds = Array.from(vaultSlice.matchAll(/<div class=vcard-top><code>([^<]+)<\/code>/g), m => m[1]);
+  assert.equal(vaultIds.length, 33, "Vault must contain exactly 33 SKUs");
+  assert.equal(new Set(vaultIds).size, 33, "Vault SKU IDs must be unique");
+  assert(vaultIds.includes(TR_20TB));
+  assert(vaultIds.includes(TR_30TB));
+  assert(vaultIds.includes(GEMINI_99P));
+  assert(vaultSlice.includes("Đang sống"));
+  assert(vaultSlice.includes("Tắt promo"));
+  assert(vaultSlice.includes("Đã khóa 26/11"));
+  assert(!studioHtml.includes("linear-gradient"));
+  assert(!studioHtml.includes("radial-gradient"));
+  assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
+  assert.equal(studioHtml.match(/\p{Extended_Pictographic}/gu), null, "Studio HTML must have zero Unicode emojis");
+
+  // 6. Verify HUD HTML for all 5 active packs has contextual guidance, strict CSP, zero gradients & zero emojis
+  for (const packId of [
+    "iphone-1-pro-99p-slot20",
+    "iphone-2-gemini-99p",
+    "iphone-3-tr-ultra-legacy",
+    "iphone-4-pro-12m-90p",
+    "iphone-5-ultra-backup"
+  ]) {
+    run("g1-sku-report-v1.js", { url: REPORT + "?action=quick&pack=" + packId, storage });
+    const hudHtml = run("g1-all-in-one-v1.js", {
+      url: "https://one.google.com/ai?hl=vi",
+      body: "<!doctype html><html><body><div>" + TWENTY + "</div></body></html>",
+      responseStatus: 200,
+      responseHeaders: { "content-type": "text/html; charset=utf-8" },
+      storage
+    }).payload.body;
+    assert(hudHtml.includes('data-g1-hud="1"'));
+    assert(!hudHtml.includes("linear-gradient"));
+    assert(!hudHtml.includes("radial-gradient"));
+    assert(!/<(?:script|img|iframe)\b/i.test(hudHtml));
+    assert.equal(hudHtml.match(/\p{Extended_Pictographic}/gu), null, "HUD HTML must have zero Unicode emojis for " + packId);
+  }
+});
+
+test("ALL IN ONE_V1 v2.9 Loon optimizations: openUrl notifications, runtime detection, 3xx/204/304 fast-skip & /u/0 route normalization", () => {
+  const LOON_UA = "iPhone16,2, iOS 18.2, Loon 3.2.5";
+
+  // 1. Loon rewrite notification passes { openUrl: Studio } and scan notification passes { openUrl: Studio?tab=scanned }
+  const loonStorage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-1-pro-99p-slot20",
+    storage: loonStorage,
+    loon: LOON_UA
+  });
+  const loonRewrite = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/u/0/ai?hl=vi",
+    body: JSON.stringify([TWENTY]),
+    storage: loonStorage,
+    loon: LOON_UA
+  });
+  assert.equal(loonRewrite.notifications.length, 1);
+  assert.deepEqual(loonRewrite.notifications[0].attach, { openUrl: REPORT });
+  // /u/0/ai normalizes to /ai in scan diagnostics without leaking account slot index
+  assert.equal(get(loonStorage, SCAN_KEY).recentResponses[0].path, "/ai");
+
+  const loonScanStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "scan-only", notify: true, overlayPanel: false
+  })]]);
+  const loonScan = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/u/2/plans?hl=vi",
+    body: JSON.stringify([THIRTY]),
+    storage: loonScanStorage,
+    loon: LOON_UA
+  });
+  assert.equal(loonScan.notifications.length, 1);
+  assert.deepEqual(loonScan.notifications[0].attach, { openUrl: REPORT + "?tab=scanned" });
+  assert.equal(get(loonScanStorage, SCAN_KEY).recentResponses[0].path, "/plans");
+
+  // Non-Loon runtime does NOT pass Loon attach object
+  const nonLoon = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi",
+    body: JSON.stringify([TWENTY]),
+    storage: new Map([[CONFIG_KEY, JSON.stringify({ schemaVersion: 1, profile: "pro-99p-slot20", mode: "auto", notify: true, overlayPanel: false })]])
+  });
+  assert.equal(nonLoon.notifications.length, 1);
+  assert.equal(nonLoon.notifications[0].attach, undefined);
+
+  // 2. Loon runtime detection in Studio HTML and JSON report
+  const loonStudio = run("g1-sku-report-v1.js", { url: REPORT, storage: loonStorage, loon: LOON_UA }).payload.response.body;
+  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9"));
+  assert(loonStudio.includes("Checklist tối ưu cho Loon (iOS)"));
+  assert(loonStudio.includes("Loon 3.2.5"));
+  const loonJson = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage: loonStorage, loon: LOON_UA }).payload.response.body);
+  assert.equal(loonJson.runtime, "loon");
+  const proxyJson = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage: loonStorage }).payload.response.body);
+  assert.equal(proxyJson.runtime, "proxy");
+
+  // 3. 3xx / 204 / 304 / Location responses fast-skip completely without touching SCAN_KEY or TEST_KEY
+  const fastStorage = new Map();
+  for (const skipCase of [
+    { status: 301, headers: { "content-type": "text/html", location: "https://one.google.com/u/0/ai" } },
+    { status: 302, headers: { "content-type": "text/html" } },
+    { status: 307, headers: { "content-type": "text/html" } },
+    { status: 204, headers: {} },
+    { status: 304, headers: {} },
+    { status: 200, headers: { "content-type": "text/html", Location: "https://accounts.google.com/" } }
+  ]) {
+    const skipped = run("g1-all-in-one-v1.js", {
+      url: "https://one.google.com/ai?hl=vi",
+      body: JSON.stringify([TWENTY]),
+      responseStatus: skipCase.status,
+      responseHeaders: skipCase.headers,
+      storage: fastStorage,
+      loon: LOON_UA
+    });
+    assert.deepEqual(skipped.payload, {});
+  }
+  assert.equal(fastStorage.has(SCAN_KEY), false);
+  assert.equal(fastStorage.has(TEST_KEY), false);
 });

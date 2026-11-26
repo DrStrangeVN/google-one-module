@@ -1,18 +1,25 @@
-/* Google One ALL IN ONE_V1 (v2.8.2 Studio): Frame-1 Fast Floating HUD, Static-Asset Fast-Skip, Strict 200-HTML-Only Guard, In-App Top 5 Switcher & Meta-Refresh Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.9 Studio · Loon Optimized): 2026-11-26 Live Top 5 Switcher (Pro 3T 99% 1-Slot 20TB / Pro & Gemini, TR Ultra 20TB+30TB Legacy), 9 Profiles, Frame-1 Fast Floating HUD, 3xx/Static Fast-Skip, Strict 200-HTML-Only Guard, Loon openUrl Notifications, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.8.2";
+  var VERSION = "g1-aio-v2.9";
+  var REPORT_URL = "https://one.google.com/g1-sku-report";
+  var IS_LOON = typeof $loon !== "undefined";
+  var GEMINI_99P_TARGET = "com.google.gemini.2tb.ai.m.3month_ip_99p";
   var HUD_PACKS = [
-    { id: "iphone-1-ultra-1m", label: "#1 Ultra 1M 0đ", app: "Google App", profile: "ultra-1m-free", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" },
-    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Gemini", app: "App Gemini", profile: "promo-90p", target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p", rewriteScope: "extended", nativeMode: "rewrite" },
-    { id: "iphone-3-pro-12m-90p", label: "#3 Pro 12T 90p", app: "Google App", profile: "promo-90p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
-    { id: "iphone-4-ultra-75p", label: "#4 Ultra 75p", app: "Google App", profile: "ultra-75p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
-    { id: "iphone-5-hybrid-combo", label: "#5 Combo Free+90p", app: "Google App", profile: "hybrid-combo", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" }
+    { id: "iphone-1-pro-99p-slot20", label: "#1 Pro 3T 99% · 1-Slot 20TB", tier: "live", app: "Google App", profile: "pro-99p-slot20", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "scan" },
+    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Pro/Gemini", tier: "live", app: "Google App / App Gemini", profile: "promo-90p", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
+    { id: "iphone-3-tr-ultra-legacy", label: "#3 TR Ultra 20TB+30TB", tier: "live", app: "Google App (TR ID)", profile: "tr-ultra-legacy", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "extended", nativeMode: "scan" },
+    { id: "iphone-4-pro-12m-90p", label: "#4 Pro 12T 90p · Tắt promo", tier: "warn", app: "Google App", profile: "promo-90p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
+    { id: "iphone-5-ultra-backup", label: "#5 Ultra Free/75p · Dự phòng", tier: "backup", app: "Google App", profile: "ultra-75p", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" }
   ];
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
+  var TR_LEGACY_MAP = {
+    "g1.ios.20tb.m.v2": "g1.ios.20tb.m",
+    "g1.ios.30tb.ai.pro.m": "g1.ios.30tb.m"
+  };
   var SKU_MAP = {
     "g1.ios.20tb.m.v2": "g1.20tb.3months_ip_90p.acq",
     "g1.ios.30tb.ai.pro.m": "g1.ai.ultra.3months_ip_90p.acq"
@@ -110,6 +117,12 @@
   }
 
   function handleWeb(responseBody, cfg) {
+    var status = getResponseStatus();
+    if (status === 204 || status === 304 || (status >= 300 && status < 400) || hasResponseLocationHeader()) {
+      $done({});
+      return;
+    }
+
     var ct = getResponseContentType();
     if (ct && isStaticAssetContentType(ct)) {
       $done({});
@@ -132,7 +145,8 @@
         notifyUser(
           "G1 ALL IN ONE_V1",
           "Phát hiện +" + scanResult.addedCount + " SKU mới (Web)",
-          "Mở one.google.com/g1-sku-report để xem"
+          "Mở one.google.com/g1-sku-report để xem",
+          REPORT_URL + "?tab=scanned"
         );
       }
       var scanHudOut = maybeInjectHud(body, cfg, Object.create(null), 0, "Chỉ quét");
@@ -149,7 +163,8 @@
         notifyUser(
           "G1 ALL IN ONE_V1",
           "Phát hiện +" + scanResult.addedCount + " SKU mới (Web)",
-          "Mở one.google.com/g1-sku-report để xem"
+          "Mở one.google.com/g1-sku-report để xem",
+          REPORT_URL + "?tab=scanned"
         );
       }
       var scopeHudOut = maybeInjectHud(body, cfg, Object.create(null), 0, "Chờ chọn gói");
@@ -256,7 +271,8 @@
         notifyUser(
           "G1 ALL IN ONE_V1",
           "Phát hiện +" + scanResult.addedCount + " SKU mới (Native App)",
-          "Mở one.google.com/g1-sku-report để xem"
+          "Mở one.google.com/g1-sku-report để xem",
+          REPORT_URL + "?tab=scanned"
         );
       }
       $done({});
@@ -343,6 +359,23 @@
       return null;
     }
 
+    if (cfg.profile === "pro-99p-slot20") {
+      if (id === "g1.ios.20tb.m.v2" && cfg.enable20tb) {
+        return { to: GEMINI_99P_TARGET, fallback: false, is2tb: false };
+      }
+      return null;
+    }
+
+    if (cfg.profile === "tr-ultra-legacy") {
+      if (id === "g1.ios.20tb.m.v2") {
+        return cfg.enable20tb ? { to: TR_LEGACY_MAP[id], fallback: false, is2tb: false } : null;
+      }
+      if (id === "g1.ios.30tb.ai.pro.m") {
+        return cfg.enable30tb ? { to: TR_LEGACY_MAP[id], fallback: false, is2tb: false } : null;
+      }
+      return null;
+    }
+
     if (cfg.profile === "ultra-1m-free") {
       if (id.indexOf("g1.ios.") === 0 && id.length > 7) {
         return { to: ULTRA_1M_TARGET, fallback: false, is2tb: is2tb };
@@ -388,6 +421,8 @@
   }
 
   function describeSku(id) {
+    if (id === "g1.ios.20tb.m") return "Ultra 20TB · Giá cũ TR (1.989,99 TRY)";
+    if (id === "g1.ios.30tb.m") return "Ultra 30TB · Giá cũ TR (2.949,99 TRY)";
     var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
       /20tb/i.test(id) ? "Ultra 20TB" :
       /10tb/i.test(id) ? "Pro 10TB" :
@@ -452,6 +487,30 @@
       html.indexOf("<!doctype") !== -1 || html.indexOf("<!DOCTYPE") !== -1;
   }
 
+  function buildHudPackNotice(activePackId) {
+    if (activePackId === "iphone-1-pro-99p-slot20") {
+      return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);color:#A7F3D0;font-size:11px;">' +
+        'Gói #1 (Đang sống · 1-Slot): Bấm nút Ultra 20TB ngay trên trang này để mở Pro 3T 99% (tránh xung đột nhiều nút).</div>';
+    }
+    if (activePackId === "iphone-2-gemini-99p") {
+      return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
+        'Gói #2 (Đang sống · v7.12): Bấm nút AI Pro 2TB trên Google App hoặc mở App Gemini (iOS) → Upgrade (không hiện thanh nổi trong App Gemini).</div>';
+    }
+    if (activePackId === "iphone-3-tr-ultra-legacy") {
+      return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
+        'Gói #3 (Đang sống · TR Apple ID): Bấm nút 20TB (1.989,99 TRY) hoặc 30TB (2.949,99 TRY) để kiểm tra giá cũ trên StoreKit.</div>';
+    }
+    if (activePackId === "iphone-4-pro-12m-90p") {
+      return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);color:#FDE68A;font-size:11px;">' +
+        'Cảnh báo 26/11: Gói #4 đang tạm tắt promo 90% ($19,99/tháng) — kiểm tra kỹ giá StoreKit trước khi xác nhận.</div>';
+    }
+    if (activePackId === "iphone-5-ultra-backup") {
+      return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(251,113,133,0.12);border:1px solid rgba(251,113,133,0.28);color:#FECDD3;font-size:11px;">' +
+        'Cảnh báo 26/11: Các gói Ultra .acq đang bị khóa trên iOS (Purchase not completed) — giữ làm dự phòng khi mở lại.</div>';
+    }
+    return "";
+  }
+
   function injectOverlayPanel(html, cfg, mappings, hits, statusNote) {
     if (!isSafeHtmlForHud(html)) return html;
     var closeIdx = html.lastIndexOf("</body>");
@@ -477,14 +536,13 @@
       var isOn = activePackId === p.id;
       var btnStyle = isOn
         ? 'display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;border:1px solid #3B82F6;text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:700;font-size:11px;'
-        : 'display:inline-flex;align-items:center;background:rgba(255,255,255,0.07);color:#E5E7EB;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:600;font-size:11px;';
+        : p.tier === "live"
+          ? 'display:inline-flex;align-items:center;background:rgba(52,211,153,0.12);color:#A7F3D0;border:1px solid rgba(52,211,153,0.28);text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:600;font-size:11px;'
+          : 'display:inline-flex;align-items:center;background:rgba(255,255,255,0.06);color:#CBD5E1;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:600;font-size:11px;';
       return '<a href="https://one.google.com/g1-sku-report?action=quick&amp;pack=' + p.id + '&amp;back=' + backParam +
         '" style="' + btnStyle + '">' + escHtml(p.label) + '</a>';
     }).join("");
-    var geminiNotice = activePackId === "iphone-2-gemini-99p"
-      ? '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
-        'Gói #2 chạy trên App Gemini (iOS) → Upgrade (không hiện thanh nổi trong App Gemini).</div>'
-      : '';
+    var packNotice = buildHudPackNotice(activePackId);
     var mappingBlock = rows.length
       ? '<div style="margin-top:8px;">' + rows.join("") + '</div>'
       : '<div style="margin-top:8px;color:#A7B0C5;font-size:11px;">Trang này chưa đổi SKU — chạm 1 gói ở trên để áp dụng và tự tải lại.</div>';
@@ -499,9 +557,9 @@
       '<span>' + escHtml(summaryLabel) + '</span>' +
       '</span><span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">Đổi 5 gói</span>' +
       '</summary><div style="margin-top:8px;">' +
-      '<div style="font-size:11px;font-weight:700;color:#93C5FD;margin-bottom:5px;">Đổi nhanh 5 gói iPhone (1 chạm tự tải lại)</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#93C5FD;margin-bottom:5px;">Đổi nhanh 5 gói iPhone (Cập nhật 26/11 · #1-#3 đang sống)</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + packButtons + '</div>' +
-      geminiNotice + mappingBlock +
+      packNotice + mappingBlock +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
       '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
       '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&amp;back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
@@ -593,6 +651,8 @@
       return mappings[id];
     });
     var effectiveTarget = cfg.profile === "ultra-1m-free" || cfg.profile === "hybrid-combo" ? ULTRA_1M_TARGET :
+      cfg.profile === "pro-99p-slot20" ? GEMINI_99P_TARGET :
+      cfg.profile === "tr-ultra-legacy" ? "tr-legacy-20tb-30tb" :
       cfg.profile === "ultra-free-probe" ? "probe-11-eft" :
       cfg.profile === "custom-only" ? "custom-rules" : cfg.target2tb;
 
@@ -662,13 +722,15 @@
       notifyUser(
         "G1 ALL IN ONE_V1 (" + channelLabel + " · " + cfg.profile + ")",
         "Đã ghi đè " + hits + " SKU (2TB: " + annualHits + ")",
-        summary
+        summary,
+        REPORT_URL
       );
     } else if (scanResult.addedCount > 0) {
       notifyUser(
         "G1 ALL IN ONE_V1 (" + channelLabel + ")",
         "Phát hiện +" + scanResult.addedCount + " SKU mới",
-        "Mở one.google.com/g1-sku-report để xem"
+        "Mở one.google.com/g1-sku-report để xem",
+        REPORT_URL + "?tab=scanned"
       );
     }
   }
@@ -1167,6 +1229,14 @@
     return out;
   }
 
+  function isValidProfile(profile) {
+    return profile === "pro-99p-slot20" || profile === "tr-ultra-legacy" ||
+      profile === "promo-90p" || profile === "ultra-75p" ||
+      profile === "v7.6-eft" || profile === "hybrid-combo" ||
+      profile === "ultra-1m-free" || profile === "ultra-free-probe" ||
+      profile === "custom-only";
+  }
+
   function loadConfig() {
     var defaults = {
       schemaVersion: 1,
@@ -1193,10 +1263,7 @@
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-      if (parsed.profile === "promo-90p" || parsed.profile === "ultra-75p" ||
-          parsed.profile === "v7.6-eft" || parsed.profile === "hybrid-combo" ||
-          parsed.profile === "ultra-1m-free" || parsed.profile === "ultra-free-probe" ||
-          parsed.profile === "custom-only") {
+      if (isValidProfile(parsed.profile)) {
         defaults.profile = parsed.profile;
       }
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
@@ -1226,10 +1293,14 @@
     return defaults;
   }
 
-  function notifyUser(title, subtitle, message) {
+  function notifyUser(title, subtitle, message, openUrl) {
     try {
       if (typeof $notification === "object" && $notification && typeof $notification.post === "function") {
-        $notification.post(title, subtitle, message);
+        if (IS_LOON) {
+          $notification.post(title, subtitle, message, { openUrl: openUrl || REPORT_URL });
+        } else {
+          $notification.post(title, subtitle, message);
+        }
       }
     } catch (error) {
       console.log("[g1-aio-v1] notification failed");
@@ -1238,7 +1309,7 @@
 
   function safeRoute(requestUrl) {
     var path = requestUrl.replace(/^https:\/\/one\.google\.com/, "").split(/[?#]/)[0];
-    path = path.replace(/\/+$/, "") || "/";
+    path = path.replace(/^\/u\/\d+(?=\/|$)/, "").replace(/\/+$/, "") || "/";
     if (path === "/" || path === "/ai" || path === "/plans" || path === "/upsell" || path === "/storage") return path;
     if (/^\/_\/[^?#]+\/data\/batchexecute$/.test(path)) return "/_/…/data/batchexecute";
     return OTHER_PATH;
