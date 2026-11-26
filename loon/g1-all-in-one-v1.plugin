@@ -1,14 +1,14 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.8 Studio (Liquid Glass): Thanh nổi 200-HTML-only an toàn đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.* + Kho 32 SKU + Native Protobuf
+#!desc=v2.8.1 Studio (Loon Fix): Chuẩn hóa rule AND 2 vế REJECT-DROP + thanh nổi 200-HTML-only đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.* + Kho 32 SKU
 #!author=DrStrangeVN
 #!system=ios
 #!homepage=https://github.com/DrStrangeVN/google-one-module
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Google.png
 
 [Rule]
-# Chỉ chặn UDP 443 trên 2 domain Google One để không ảnh hưởng HTTP/3 của các app khác.
-AND,((DOMAIN,one.google.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
-AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+# Chỉ chặn UDP (QUIC) trên 2 domain Google One bằng cú pháp AND 2 vế chuẩn Loon.
+AND,((DOMAIN,one.google.com),(PROTOCOL,UDP)),REJECT-DROP
+AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP)),REJECT-DROP
 
 [Rewrite]
 ^https:\/\/one\.google\.com\/ header-del Accept-Encoding
@@ -16,9 +16,9 @@ AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP),(DEST-PORT,44
 ^https:\/\/one\.google\.com\/ header-del If-Modified-Since
 
 [Script]
-http-response ^https:\/\/one\.google\.com\/ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js, requires-body=true, timeout=10, tag=g1-aio-v1-web
-http-response ^https:\/\/subscriptionsmobile-pa\.googleapis\.com\/.*GetDynamicStorefrontInfo script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js, requires-body=true, binary-body-mode=true, timeout=10, tag=g1-aio-v1-native
-http-request ^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report-v1.js, timeout=10, tag=g1-sku-report-v1
+http-request ^https:\/\/one\.google\.com\/g1-sku-report\/?(?:\?.*)?$ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-sku-report-v1.js, timeout=10, tag=g1-sku-report-v1, enable=true
+http-response ^https:\/\/one\.google\.com\/ script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js, requires-body=true, binary-body-mode=false, timeout=10, tag=g1-aio-v1-web, enable=true
+http-response ^https:\/\/subscriptionsmobile-pa\.googleapis\.com\/.*GetDynamicStorefrontInfo script-path=https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/g1-all-in-one-v1.js, requires-body=true, binary-body-mode=true, timeout=10, tag=g1-aio-v1-native, enable=true
 
 [MITM]
 hostname = one.google.com, subscriptionsmobile-pa.googleapis.com

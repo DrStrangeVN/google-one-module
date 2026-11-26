@@ -971,6 +971,12 @@ test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC 
     } else {
       assert.match(content, /DOMAIN,one\.google\.com/);
       assert.match(content, /DOMAIN,subscriptionsmobile-pa\.googleapis\.com/);
+      if (entry.type === "loon") {
+        assert.match(content, /^AND,\(\(DOMAIN,one\.google\.com\),\(PROTOCOL,UDP\)\),REJECT-DROP$/m);
+        assert.match(content, /^AND,\(\(DOMAIN,subscriptionsmobile-pa\.googleapis\.com\),\(PROTOCOL,UDP\)\),REJECT-DROP$/m);
+        assert(!content.includes("max-size="));
+        assert(content.includes("enable=true"));
+      }
     }
   }
 });
