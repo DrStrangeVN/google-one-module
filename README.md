@@ -33,10 +33,11 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
 
-* **Nâng cấp so với bản chính (v2.6 Studio — Top 5 Gói 1 Chạm cho iPhone + đồng bộ `crhywun` v7.10.0, `Rulanv/g1-acq-in3m` & `sku-atlas.md`):**
+* **Nâng cấp so với bản chính (v2.7 Studio — Thanh nổi siêu nhẹ đổi Top 5 trực tiếp tự tải lại + đồng bộ `crhywun` v7.10.0, `Rulanv/g1-acq-in3m` & `sku-atlas.md`):**
+  * **Thanh nổi HUD siêu nhẹ & Đổi 5 gói trực tiếp tại chỗ (Mới v2.7)**: Bỏ `backdrop-filter: blur` gây khựng và bỏ nhân đôi chuỗi HTML 1.2 MB; thanh nổi hiện sẵn dưới dạng 1 viên pill gọn trên các trang gói Google One (kể cả khi chưa khớp SKU), bấm mở ra **5 nút chọn gói 1 chạm** lưu cấu hình và **redirect `302` tự tải lại đúng trang hiện tại** mà không cần chuyển qua Safari.
   * **Top 5 Gói 1 Chạm cho iPhone (Ngay đầu tab Studio)**: Xếp hạng sẵn #1 → #5 kèm ghi chú **mở app nào để chạy** (`Google App` vs `App Gemini`). Chạm 1 lần tự cấu hình trọn bộ Profile + Đích 2TB + Phạm vi Web (`/ai?` hoặc Mở rộng `/u/0/*`) + Native Protobuf, không cần chỉnh thêm bước nào khác.
-  * **Lưu ý thanh nổi (HUD) trên App Gemini iOS**: App Gemini dùng giao diện/RPC native nên **không có HTML `</body>`** để chèn thanh nổi trên màn hình như Google App; với gói #2 (`Pro 3T 99%`), module tự bật sẵn **Thông báo iOS (`$notification`)** + bạn có thể kiểm tra kết quả khớp ngay trong tab **Đã Quét / Chẩn Đoán** của Studio.
-  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.6`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
+  * **Lưu ý thanh nổi (HUD) trên App Gemini iOS**: App Gemini dùng giao diện/RPC native nên **không có HTML `</body>`** để chèn thanh nổi trên màn hình như Google App; với gói #2 (`Pro 3T 99%`), bạn vẫn có thể chọn nhanh `#2` từ thanh nổi ở Google App hoặc Studio, sau đó chuyển sang App Gemini và theo dõi banner **Thông báo iOS (`$notification`)** hoặc tab **Đã Quét / Chẩn Đoán**.
+  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.7`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
   * **7 Profile chuyển 1 chạm:**
     1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p`.
     2. `ultra-75p` (Theo `crhywun v7.8.0`): 20TB & 30TB cố định **3 tháng giảm 75% (trả 25%)** dùng khi `1M Free` / `90p` bị Google khóa.

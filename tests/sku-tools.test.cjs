@@ -802,7 +802,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.6");
+  assert.equal(scan.version, "g1-aio-v2.7");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1076,7 +1076,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.6"));
+  assert(studioHtml.includes("aio-v2.7"));
   assert(studioHtml.includes("Kho SKU Cộng Đồng (32 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
@@ -1096,7 +1096,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.6");
+  assert.equal(jsonOut.reportVersion, "aio-v2.7");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1351,4 +1351,108 @@ test("ALL IN ONE_V1 v2.6 provides Top 5 1-tap iPhone quick packs and /u/0/* exte
   }).payload.response.body;
   assert(badPack.includes("Gói 1 chạm không hợp lệ"));
   assert.equal(get(storage, CONFIG_KEY).profile, "ultra-75p");
+});
+
+test("ALL IN ONE_V1 v2.7 injects lightweight 5-pack HUD (even on 0-hit plan pages) and performs safe 302 auto-reload", () => {
+  const storage = new Map();
+  // 1. Default config on HTML plan page with no matching SKU still injects lightweight 5-pack HUD without blur
+  const html0 = "<html><body><div>No SKU here</div></body></html>";
+  const res0 = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi&_g1ts=111",
+    body: html0,
+    storage
+  });
+  assert(res0.payload.body.includes('data-g1-hud="1"'));
+  assert(!res0.payload.body.includes("backdrop-filter"));
+  assert(!res0.payload.body.includes("linear-gradient"));
+  assert(!res0.payload.body.includes("radial-gradient"));
+  assert(!/<script\b/i.test(res0.payload.body));
+  for (const packId of [
+    "iphone-1-ultra-1m",
+    "iphone-2-gemini-99p",
+    "iphone-3-pro-12m-90p",
+    "iphone-4-ultra-75p",
+    "iphone-5-hybrid-combo"
+  ]) {
+    assert(res0.payload.body.includes("action=quick&pack=" + packId));
+  }
+  assert(res0.payload.body.includes("back=" + encodeURIComponent("https://one.google.com/ai?hl=vi")));
+  assert(!res0.payload.body.includes("_g1ts%3D111"));
+
+  // 2. scan-only injects HUD on HTML /plans while NOT creating TEST_KEY, and leaves JSON untouched
+  const scanStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "scan-only", overlayPanel: true, notify: false
+  })]]);
+  const scanHtmlRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/plans?x=1",
+    body: "<html><body><div>Plans</div></body></html>",
+    storage: scanStorage
+  });
+  assert(scanHtmlRes.payload.body.includes('data-g1-hud="1"'));
+  assert.equal(scanStorage.has(TEST_KEY), false);
+
+  const jsonNoMatch = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/plans?x=1",
+    body: JSON.stringify({ message: "</body>" }),
+    storage: scanStorage
+  });
+  assert.deepEqual(jsonNoMatch.payload, {});
+
+  // Non-matching scope HTML plan page (/plans while scope=ai) also injects HUD without touching TEST_KEY
+  const aiScopeStorage = new Map([[CONFIG_KEY, JSON.stringify({
+    schemaVersion: 1, mode: "auto", rewriteScope: "ai", overlayPanel: true, notify: false
+  })]]);
+  const plansOutOfScope = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/plans",
+    body: "<html><body>Plans</body></html>",
+    storage: aiScopeStorage
+  });
+  assert(plansOutOfScope.payload.body.includes('data-g1-hud="1"'));
+  assert.equal(aiScopeStorage.has(TEST_KEY), false);
+
+  // 3. Clicking Pack #2 from HUD triggers HTTP 302 back to one.google.com with fresh _g1ts= and updates config
+  const backUrl = "https://one.google.com/ai?hl=vi&_g1ts=111";
+  const redirRes = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=quick&pack=iphone-2-gemini-99p&back=" + encodeURIComponent(backUrl),
+    storage
+  });
+  assert.equal(redirRes.payload.response.status, 302);
+  const loc = redirRes.payload.response.headers.Location;
+  assert.match(loc, /^https:\/\/one\.google\.com\/ai\?hl=vi&_g1ts=\d+$/);
+  assert.equal(get(storage, CONFIG_KEY).target2tb, "com.google.gemini.2tb.ai.m.3month_ip_99p");
+  assert.equal(get(storage, CONFIG_KEY).rewriteScope, "extended");
+  assert.equal(get(storage, CONFIG_KEY).nativeMode, "rewrite");
+
+  // When Pack #2 is active, HUD shows App Gemini reminder
+  const hudPack2 = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi",
+    body: "<html><body><div>AI</div></body></html>",
+    storage
+  });
+  assert(hudPack2.payload.body.includes("App Gemini (iOS)"));
+
+  // toggle-overlay with valid back also returns 302 and flips overlayPanel
+  const togRedir = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=toggle-overlay&back=" + encodeURIComponent("https://one.google.com/plans"),
+    storage
+  });
+  assert.equal(togRedir.payload.response.status, 302);
+  assert.match(togRedir.payload.response.headers.Location, /^https:\/\/one\.google\.com\/plans\?_g1ts=\d+$/);
+  assert.equal(get(storage, CONFIG_KEY).overlayPanel, false);
+
+  // 4. Malicious / off-origin / loop / CRLF back URLs must NEVER trigger 302 redirect (returns 200 HTML instead)
+  for (const badBack of [
+    "https://evil.test/",
+    "https://one.google.com.evil/ai",
+    "javascript:alert(1)",
+    "https://one.google.com/g1-sku-report",
+    "https://one.google.com/ai\r\nX-Inject: 1"
+  ]) {
+    const safeRes = run("g1-sku-report-v1.js", {
+      url: REPORT + "?action=quick&pack=iphone-1-ultra-1m&back=" + encodeURIComponent(badBack),
+      storage
+    });
+    assert.equal(safeRes.payload.response.status, 200);
+    assert.equal(safeRes.payload.response.headers.Location, undefined);
+  }
 });

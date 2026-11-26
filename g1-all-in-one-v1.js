@@ -1,8 +1,15 @@
-/* Google One ALL IN ONE_V1 (v2.6 Studio): Top 5 iPhone 1-Tap Packs, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.7 Studio): Fast No-Blur Floating HUD with In-App Top 5 Switcher & 302 Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.6";
+  var VERSION = "g1-aio-v2.7";
+  var HUD_PACKS = [
+    { id: "iphone-1-ultra-1m", label: "#1 Ultra 1M 0đ", app: "Google App", profile: "ultra-1m-free", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" },
+    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Gemini", app: "App Gemini", profile: "promo-90p", target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p", rewriteScope: "extended", nativeMode: "rewrite" },
+    { id: "iphone-3-pro-12m-90p", label: "#3 Pro 12T 90p", app: "Google App", profile: "promo-90p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
+    { id: "iphone-4-ultra-75p", label: "#4 Ultra 75p", app: "Google App", profile: "ultra-75p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
+    { id: "iphone-5-hybrid-combo", label: "#5 Combo Free+90p", app: "Google App", profile: "hybrid-combo", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" }
+  ];
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -81,6 +88,17 @@
 
   handleWeb(rawBody, config);
 
+  function isPlanPageUrl(reqUrl) {
+    return /^https:\/\/one\.google\.com\/(?:u\/\d+\/)?(?:ai(?:[/?]|$)|upsell(?:[/?]|$)|plans(?:[/?]|$)|storage(?:[/?]|$))/.test(reqUrl);
+  }
+
+  function maybeInjectHud(htmlText, cfg, mappings, hits, statusNote) {
+    if (!cfg.overlayPanel || typeof htmlText !== "string" || !isPlanPageUrl(url)) {
+      return htmlText;
+    }
+    return injectOverlayPanel(htmlText, cfg, mappings, hits, statusNote);
+  }
+
   function handleWeb(responseBody, cfg) {
     var body = decodeTextBody(responseBody);
     var scanResult = { addedCount: 0, candidateCount: 0 };
@@ -101,7 +119,8 @@
           "Mở one.google.com/g1-sku-report để xem"
         );
       }
-      $done({});
+      var scanHudOut = maybeInjectHud(body, cfg, Object.create(null), 0, "Chỉ quét");
+      $done(scanHudOut !== body ? { body: scanHudOut } : {});
       return;
     }
 
@@ -117,7 +136,8 @@
           "Mở one.google.com/g1-sku-report để xem"
         );
       }
-      $done({});
+      var scopeHudOut = maybeInjectHud(body, cfg, Object.create(null), 0, "Chờ chọn gói");
+      $done(scopeHudOut !== body ? { body: scopeHudOut } : {});
       return;
     }
 
@@ -126,7 +146,8 @@
       if (!promoCatalog.length) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
         console.log("[g1-aio-v1] strictCatalog=on, no promo SKUs in catalog -> passthrough");
-        $done({});
+        var strictHudOut = maybeInjectHud(body, cfg, Object.create(null), 0, "Strict Catalog");
+        $done(strictHudOut !== body ? { body: strictHudOut } : {});
         return;
       }
     }
@@ -153,15 +174,16 @@
         }
       );
 
-      if (hits > 0 && cfg.overlayPanel) {
-        out = injectOverlayPanel(out, cfg, mappings, hits);
+      if (cfg.overlayPanel && (isPlanPageUrl(url) || hits > 0)) {
+        out = injectOverlayPanel(out, cfg, mappings, hits, hits ? "" : "Chưa khớp");
       }
     }
 
     saveTestRecord(cfg, mappings, hits, annualHits, typeof body !== "string" ? "non-text" : hits ? "rewritten" : "no-match");
     logRewrite(cfg, "web", mappings, hits, annualHits);
     notifyOutcome(cfg, mappings, hits, annualHits, scanResult, "Web");
-    $done(hits ? { body: out } : {});
+    var modified = hits > 0 || (typeof body === "string" && out !== body);
+    $done(modified ? { body: out } : {});
   }
 
   function handleNative(responseBody, cfg) {
@@ -369,12 +391,44 @@
     return tier + (dur ? " · " + dur : "");
   }
 
-  function injectOverlayPanel(html, cfg, mappings, hits) {
-    var lower = html.toLowerCase();
-    var closeIdx = lower.lastIndexOf("</body>");
-    if (closeIdx === -1) return html;
-    var trimmed = html.replace(/^\s+/, "");
-    if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[" || trimmed.indexOf(")]}'") === 0) {
+  function getActiveHudPackId(cfg) {
+    if (cfg.mode !== "auto" || cfg.customRulesOverride === true) return "";
+    for (var i = 0; i < HUD_PACKS.length; i++) {
+      var p = HUD_PACKS[i];
+      if (cfg.profile === p.profile &&
+          cfg.target2tb === p.target2tb &&
+          cfg.rewriteScope === p.rewriteScope &&
+          cfg.nativeMode === p.nativeMode) {
+        return p.id;
+      }
+    }
+    return "";
+  }
+
+  function buildBackUrl(reqUrl) {
+    var noHash = reqUrl.split("#")[0];
+    var qIdx = noHash.indexOf("?");
+    if (qIdx === -1) return noHash.length <= 1024 ? noHash : noHash.slice(0, 1024);
+    var base = noHash.slice(0, qIdx);
+    var rawQs = noHash.slice(qIdx + 1);
+    var kept = rawQs ? rawQs.split("&").filter(function (pair) {
+      return pair && pair !== "_g1ts" && pair.indexOf("_g1ts=") !== 0;
+    }) : [];
+    var rebuilt = kept.length ? base + "?" + kept.join("&") : base;
+    return rebuilt.length <= 1024 ? rebuilt : base;
+  }
+
+  function injectOverlayPanel(html, cfg, mappings, hits, statusNote) {
+    if (typeof html !== "string" || !html) return html;
+    var closeIdx = html.lastIndexOf("</body>");
+    if (closeIdx === -1) closeIdx = html.lastIndexOf("</BODY>");
+    if (closeIdx === -1 || html.indexOf('data-g1-hud="1"') !== -1) return html;
+    var firstIdx = 0;
+    while (firstIdx < html.length && html.charCodeAt(firstIdx) <= 32) {
+      firstIdx++;
+    }
+    var firstCh = html.charAt(firstIdx);
+    if (firstCh === "{" || firstCh === "[" || html.slice(firstIdx, firstIdx + 4) === ")]}'") {
       return html;
     }
     var keys = Object.keys(mappings).sort();
@@ -387,21 +441,46 @@
         '<span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">x' + m.count +
         (m.fallback ? ' · FB' : '') + '</span></div>';
     });
-    var sparkIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    var statusIcon = hits > 0
+      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+      : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>';
+    var summaryLabel = hits > 0
+      ? 'ALL IN ONE_V1 (' + cfg.profile + ') · ' + keys.length + ' mã (' + hits + 'x)'
+      : 'ALL IN ONE_V1 (' + cfg.profile + ') · ' + (statusNote || 'Chưa khớp');
+    var backParam = encodeURIComponent(buildBackUrl(url));
+    var activePackId = getActiveHudPackId(cfg);
+    var packButtons = HUD_PACKS.map(function (p) {
+      var isOn = activePackId === p.id;
+      var btnStyle = isOn
+        ? 'display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;border:1px solid #3B82F6;text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:700;font-size:11px;'
+        : 'display:inline-flex;align-items:center;background:rgba(255,255,255,0.07);color:#E5E7EB;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:600;font-size:11px;';
+      return '<a href="https://one.google.com/g1-sku-report?action=quick&pack=' + p.id + '&back=' + backParam +
+        '" style="' + btnStyle + '">' + escHtml(p.label) + '</a>';
+    }).join("");
+    var geminiNotice = activePackId === "iphone-2-gemini-99p"
+      ? '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
+        'Gói #2 chạy trên App Gemini (iOS) → Upgrade (không hiện thanh nổi trong App Gemini).</div>'
+      : '';
+    var mappingBlock = rows.length
+      ? '<div style="margin-top:8px;">' + rows.join("") + '</div>'
+      : '<div style="margin-top:8px;color:#A7B0C5;font-size:11px;">Trang này chưa đổi SKU — chạm 1 gói ở trên để áp dụng và tự tải lại.</div>';
     var panel =
-      '<details style="position:fixed;top:8px;left:10px;right:10px;z-index:2147483647;' +
-      'background:rgba(22,25,35,0.94);-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%);' +
+      '<details data-g1-hud="1" style="position:fixed;top:8px;left:10px;right:10px;z-index:2147483647;' +
+      'background:#151822;border:1px solid rgba(255,255,255,0.14);border-radius:14px;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,0.34);' +
       'color:#F3F5F9;font-family:-apple-system,BlinkMacSystemFont,&quot;SF Pro Text&quot;,sans-serif;font-size:12px;' +
-      'line-height:1.45;padding:9px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);' +
-      'max-height:60vh;overflow-y:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),0 16px 40px rgba(0,0,0,0.45);">' +
+      'line-height:1.45;padding:9px 12px;max-height:66vh;overflow-y:auto;">' +
       '<summary style="font-weight:600;font-size:12px;color:#F3F5F9;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
-      '<span style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + sparkIcon +
-      '<span>' + escHtml('ALL IN ONE_V1 (' + cfg.profile + ') · ' + keys.length + ' mã (' + hits + 'x)') + '</span>' +
-      '</span><span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">Chi tiết</span>' +
-      '</summary><div style="margin-top:8px;">' + rows.join("") +
+      '<span style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + statusIcon +
+      '<span>' + escHtml(summaryLabel) + '</span>' +
+      '</span><span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">Đổi 5 gói</span>' +
+      '</summary><div style="margin-top:8px;">' +
+      '<div style="font-size:11px;font-weight:700;color:#93C5FD;margin-bottom:5px;">Đổi nhanh 5 gói iPhone (1 chạm tự tải lại)</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + packButtons + '</div>' +
+      geminiNotice + mappingBlock +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
       '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
-      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
+      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
       '</div></div></details>';
     return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
   }

@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.6). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.7). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.6";
+  var VERSION = "aio-v2.7";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -223,6 +223,7 @@
   var query = parseQuery(url);
   var actionMessage = "";
   var errorMessage = "";
+  var redirectLocation = "";
   var prefillFrom = "";
   if (typeof query.prefillFrom === "string") {
     var candFrom = query.prefillFrom.trim();
@@ -233,8 +234,40 @@
   var activeTab = resolveInitialTab();
 
   handleActions();
+  if (redirectLocation) {
+    console.log("[g1-sku-report-v1] " + VERSION + " redirect-back");
+    $done({
+      response: {
+        status: 302,
+        headers: {
+          "Location": redirectLocation,
+          "Cache-Control": "no-store",
+          "X-G1-Report-Version": VERSION,
+          "X-Content-Type-Options": "nosniff"
+        },
+        body: ""
+      }
+    });
+    return;
+  }
   if (!actionMessage && !errorMessage && prefillFrom) {
     actionMessage = "Đã điền sẵn mã nguồn vào Custom Rule bên dưới: " + prefillFrom;
+  }
+
+  function sanitizeBackUrl(raw) {
+    if (typeof raw !== "string" || !raw || raw.length > 1500) return "";
+    if (/[\r\n\t\s\\\x00-\x1f\x7f]/.test(raw)) return "";
+    var noHash = raw.split("#")[0];
+    if (!/^https:\/\/one\.google\.com\//.test(noHash)) return "";
+    if (/^https:\/\/one\.google\.com\/g1-sku-report(?:\/|\?|$)/.test(noHash)) return "";
+    var qIdx = noHash.indexOf("?");
+    var base = qIdx === -1 ? noHash : noHash.slice(0, qIdx);
+    var qs = qIdx === -1 ? "" : noHash.slice(qIdx + 1);
+    var kept = qs ? qs.split("&").filter(function (pair) {
+      return pair && pair !== "_g1ts" && pair.indexOf("_g1ts=") !== 0;
+    }) : [];
+    kept.push("_g1ts=" + Date.now());
+    return base + "?" + kept.join("&");
   }
 
   function resolveInitialTab() {
@@ -481,6 +514,10 @@
       cfg.customRulesOverride = pc.customRulesOverride;
       if (saveConfig(cfg)) {
         actionMessage = "Đã bật " + pack.title + " — " + pack.app + ".";
+        if (query.back) {
+          var quickBack = sanitizeBackUrl(query.back);
+          if (quickBack) redirectLocation = quickBack;
+        }
       }
       return;
     }
@@ -501,6 +538,10 @@
       cfg.overlayPanel = !cfg.overlayPanel;
       if (saveConfig(cfg)) {
         actionMessage = cfg.overlayPanel ? "Đã bật thanh nổi trên trang Google." : "Đã tắt thanh nổi trên trang Google.";
+        if (query.back) {
+          var ovBack = sanitizeBackUrl(query.back);
+          if (ovBack) redirectLocation = ovBack;
+        }
       }
       return;
     }
@@ -1149,7 +1190,7 @@
     '</div>',
 
     '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Chọn 1 chạm là chạy ngay)</h2>',
-    '<p class=dim>Chạm 1 thẻ là tự cấu hình đầy đủ (Profile, Đích 2TB, Phạm vi URL &amp; Native); sau đó mở đúng ứng dụng ghi trên thẻ để kiểm tra StoreKit.</p>',
+    '<p class=dim>Chạm 1 thẻ là tự cấu hình đầy đủ (Profile, Đích 2TB, Phạm vi URL &amp; Native); sau đó mở đúng ứng dụng ghi trên thẻ để kiểm tra StoreKit. Bạn cũng có thể đổi trực tiếp 5 gói này ngay trên thanh nổi trong Google App (tự tải lại tại chỗ).</p>',
     quickPacksHtml, '</div>',
 
     '<div class=card><h2>Bảng điều khiển nhanh</h2>',
