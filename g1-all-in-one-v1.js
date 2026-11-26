@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.5 Studio): 7 Profiles, g1.* + com.google.gemini.* namespaces, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.6 Studio): Top 5 iPhone 1-Tap Packs, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.5";
+  var VERSION = "g1-aio-v2.6";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -106,7 +106,7 @@
     }
 
     var rewritePattern = cfg.rewriteScope === "extended"
-      ? /^https:\/\/one\.google\.com\/(?:ai\?|upsell(?:[/?]|$)|plans(?:[/?]|$)|storage(?:[/?]|$)|_\/[^?#]+\/data\/batchexecute)/
+      ? /^https:\/\/one\.google\.com\/(?:u\/\d+\/)?(?:ai(?:[/?]|$)|upsell(?:[/?]|$)|plans(?:[/?]|$)|storage(?:[/?]|$)|_\/[^?#]+\/data\/batchexecute)/
       : /^https:\/\/one\.google\.com\/ai\?/;
 
     if (!rewritePattern.test(url)) {

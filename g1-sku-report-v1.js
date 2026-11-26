@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.5). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.6). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.5";
+  var VERSION = "aio-v2.6";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -25,6 +25,119 @@
     { id: "g1.20tb.1month_eft.acq", label: "Ultra 20TB · 1T Free" },
     { id: "g1.2tb.ai.12months_eft.acq", label: "Pro 12T Free (.acq)" },
     { id: "g1.2tb.ai.18months_eft", label: "Pro 18T Free (Play)" }
+  ];
+
+  var IPHONE_PACKS = [
+    {
+      id: "iphone-1-ultra-1m",
+      rank: "HẠNG 1 · 0đ / 1 THÁNG",
+      cls: "st-ok",
+      title: "Ultra 30TB · 1 tháng 0đ",
+      app: "Google App (chữ G) · hoặc Gmail / Photos / NotebookLM",
+      guide: "Dùng Gmail phụ sạch → bấm gói bất kỳ (ưu tiên Ultra 30TB) → kiểm tra giá 0đ trên StoreKit → hủy gia hạn ngay trong Apple Subscriptions. Có thanh nổi HUD.",
+      cfg: {
+        profile: "ultra-1m-free",
+        target2tb: "g1.ai.ultra.1month_eft.acq",
+        mode: "auto",
+        rewriteScope: "ai",
+        nativeMode: "scan",
+        enable2tb: true,
+        enable20tb: true,
+        enable30tb: true,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    },
+    {
+      id: "iphone-2-gemini-99p",
+      rank: "HẠNG 2 · GIẢM 99% / 3T",
+      cls: "st-ok",
+      title: "AI Pro 2TB · 3 tháng giảm 99%",
+      app: "Bắt buộc mở App Gemini (iOS) → Upgrade",
+      guide: "Tự bật Phạm vi Mở rộng + Native Rewrite + Thông báo iOS. Bấm gói AI Pro 2TB → xem giá StoreKit (app Gemini dùng giao diện gốc nên không hiện thanh nổi HTML; nhìn banner thông báo iOS hoặc mở Studio; gốc ưu đãi Ấn Độ).",
+      cfg: {
+        profile: "promo-90p",
+        target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
+        mode: "auto",
+        rewriteScope: "extended",
+        nativeMode: "rewrite",
+        enable2tb: true,
+        enable20tb: true,
+        enable30tb: true,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    },
+    {
+      id: "iphone-3-pro-12m-90p",
+      rank: "HẠNG 3 · BỀN CẢ NĂM",
+      cls: "st-info",
+      title: "AI Pro 2TB · 12 tháng giảm 90%",
+      app: "Google App (chữ G) → Quản lý Google One",
+      guide: "Chọn gói 2TB / AI Pro (~10% giá gốc suốt 12 tháng, có trả tiền thật nên ổn định nhất và ít lo rớt quyền). Có thanh nổi HUD.",
+      cfg: {
+        profile: "promo-90p",
+        target2tb: "g1.2tb.ai.12months_ip_90p",
+        mode: "auto",
+        rewriteScope: "ai",
+        nativeMode: "scan",
+        enable2tb: true,
+        enable20tb: true,
+        enable30tb: true,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    },
+    {
+      id: "iphone-4-ultra-75p",
+      rank: "HẠNG 4 · DỰ PHÒNG v7.8",
+      cls: "st-warn",
+      title: "Ultra 20TB / 30TB · 3 tháng giảm 75%",
+      app: "Google App (chữ G) → Quản lý Google One",
+      guide: "Ép thẳng giảm 75% (trả 25% trong 3 tháng) cho nút Ultra 20TB & 30TB — bật ngay khi gói 0đ và 90p báo lỗi. Có thanh nổi HUD.",
+      cfg: {
+        profile: "ultra-75p",
+        target2tb: "g1.2tb.ai.12months_ip_90p",
+        mode: "auto",
+        rewriteScope: "ai",
+        nativeMode: "scan",
+        enable2tb: true,
+        enable20tb: true,
+        enable30tb: true,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    },
+    {
+      id: "iphone-5-hybrid-combo",
+      rank: "HẠNG 5 · ĐA NĂNG",
+      cls: "st-info",
+      title: "Combo 2TB Free + Ultra 90p / 75p",
+      app: "Google App (chữ G) → Quản lý Google One",
+      guide: "Nút 2TB → Ultra 30TB 1 tháng 0đ; nút 20TB / 30TB giữ giảm 90% (tự lùi về 75%). Một lần mở trang thử được cả 2 nhóm ưu đãi. Có thanh nổi HUD.",
+      cfg: {
+        profile: "hybrid-combo",
+        target2tb: "g1.ai.ultra.1month_eft.acq",
+        mode: "auto",
+        rewriteScope: "ai",
+        nativeMode: "scan",
+        enable2tb: true,
+        enable20tb: true,
+        enable30tb: true,
+        strictCatalog: false,
+        overlayPanel: true,
+        notify: true,
+        customRulesOverride: false
+      }
+    }
   ];
 
   var COMMON_IOS_SOURCES = [
@@ -336,6 +449,38 @@
         }
       } else {
         errorMessage = "Mã SKU preset không hợp lệ.";
+      }
+      return;
+    }
+
+    if (query.action === "quick") {
+      var packId = typeof query.pack === "string" ? query.pack.trim() : "";
+      var pack = null;
+      for (var pIdx = 0; pIdx < IPHONE_PACKS.length; pIdx++) {
+        if (IPHONE_PACKS[pIdx].id === packId) {
+          pack = IPHONE_PACKS[pIdx];
+          break;
+        }
+      }
+      if (!pack) {
+        errorMessage = "Gói 1 chạm không hợp lệ.";
+        return;
+      }
+      var pc = pack.cfg;
+      cfg.profile = pc.profile;
+      cfg.target2tb = pc.target2tb;
+      cfg.mode = pc.mode;
+      cfg.rewriteScope = pc.rewriteScope;
+      cfg.nativeMode = pc.nativeMode;
+      cfg.enable2tb = pc.enable2tb;
+      cfg.enable20tb = pc.enable20tb;
+      cfg.enable30tb = pc.enable30tb;
+      cfg.strictCatalog = pc.strictCatalog;
+      cfg.overlayPanel = pc.overlayPanel;
+      cfg.notify = pc.notify;
+      cfg.customRulesOverride = pc.customRulesOverride;
+      if (saveConfig(cfg)) {
+        actionMessage = "Đã bật " + pack.title + " — " + pack.app + ".";
       }
       return;
     }
@@ -847,6 +992,26 @@
       }).join("") + '</div></div>';
   }).join("");
 
+  function isPackActive(pack, cfg) {
+    var pc = pack.cfg;
+    return cfg.profile === pc.profile &&
+      cfg.target2tb === pc.target2tb &&
+      cfg.rewriteScope === pc.rewriteScope &&
+      cfg.nativeMode === pc.nativeMode &&
+      cfg.mode === pc.mode &&
+      cfg.customRulesOverride === pc.customRulesOverride;
+  }
+
+  var quickPacksHtml = '<div class=pack-grid>' + IPHONE_PACKS.map(function (pack) {
+    var isOn = isPackActive(pack, currentConfig);
+    return '<a class="pack-card' + (isOn ? ' active' : '') + '" href="' + ROOT + '?action=quick&pack=' + pack.id + '&tab=studio">' +
+      '<div class=pack-top><span class="st-pill ' + pack.cls + '">' + escape(pack.rank) + '</span>' +
+      (isOn ? '<span class=pcard-on>Đang bật</span>' : '') + '</div>' +
+      '<div class=pack-title>' + escape(pack.title) + '</div>' +
+      '<div class=pack-app>Mở app: <strong>' + escape(pack.app) + '</strong></div>' +
+      '<div class=pack-guide>' + escape(pack.guide) + '</div></a>';
+  }).join("") + '</div>';
+
   var activeProfileObj = profileOptions.filter(function (p) { return p.id === currentConfig.profile; })[0] || profileOptions[0];
   var themeClass = currentConfig.theme === "dark" ? "dark" : currentConfig.theme === "light" ? "light" : "auto";
   var latestScan = report.scan.recentResponses.length ?
@@ -890,6 +1055,13 @@
     ".pcard.active{border-color:var(--pri);background:var(--pri-s)}",
     ".pcard-top{display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:700;font-size:13px}",
     ".pcard-on{font-size:11px;background:var(--pri);color:#fff;padding:2px 8px;border-radius:99px}.pcard-desc{font-size:12px;color:var(--muted);margin-top:4px}",
+    ".pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}",
+    ".pack-card{display:flex;flex-direction:column;gap:5px;text-decoration:none;color:var(--text);background:var(--panel-solid);border:1px solid var(--line);border-radius:13px;padding:12px}",
+    ".pack-card.active{border-color:var(--pri);background:var(--pri-s)}",
+    ".pack-top{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}",
+    ".pack-title{font-weight:700;font-size:14px;margin-top:2px}",
+    ".pack-app{font-size:12px;color:var(--info)}",
+    ".pack-guide{font-size:12px;color:var(--muted);line-height:1.45}",
     ".seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--panel-solid);border:1px solid var(--line);border-radius:99px;padding:4px}",
     ".seg-item{min-height:32px;padding:5px 13px;color:var(--muted);border:0}",
     ".pill-row{display:flex;gap:7px;flex-wrap:wrap}",
@@ -922,7 +1094,7 @@
     ".st-ok{background:var(--ok-s);color:var(--ok)}.st-info{background:var(--info-s);color:var(--info)}.st-warn{background:var(--warn-s);color:var(--warn)}.st-err{background:var(--err-s);color:var(--err)}.st-muted{background:var(--code);color:var(--muted)}",
     ".adv summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--info);padding:4px 0}",
     ".dock{display:none}",
-    "@media (max-width:899px){.app-shell{padding:8px 8px 86px}.side{display:none}.main{padding:14px 12px 24px}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pcard-grid,.form-grid,.sw-grid,.vault-grid{grid-template-columns:1fr}.dock{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:80;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:5px;border-radius:99px;background:var(--menu-bg);-webkit-backdrop-filter:blur(32px) saturate(180%);backdrop-filter:blur(32px) saturate(180%);border:1px solid var(--line2);box-shadow:var(--specular),0 14px 36px rgba(0,0,0,0.42)}.dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;border-radius:99px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;text-align:center}}"
+    "@media (max-width:899px){.app-shell{padding:8px 8px 86px}.side{display:none}.main{padding:14px 12px 24px}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pcard-grid,.pack-grid,.form-grid,.sw-grid,.vault-grid{grid-template-columns:1fr}.dock{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:80;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:5px;border-radius:99px;background:var(--menu-bg);-webkit-backdrop-filter:blur(32px) saturate(180%);backdrop-filter:blur(32px) saturate(180%);border:1px solid var(--line2);box-shadow:var(--specular),0 14px 36px rgba(0,0,0,0.42)}.dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;border-radius:99px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;text-align:center}}"
   ].join("");
 
   function tabChecked(name) {
@@ -975,6 +1147,10 @@
     '<div class=kpi><div class=kpi-k>Lần chạy gần nhất</div><div class=kpi-v>' + report.test.hitCount + ' vị trí · ' + escape(statusLabel) + '</div></div>',
     '<div class=kpi><div class=kpi-k>Khớp thành công gần nhất</div><div class=kpi-v>' + (lastSuccess ? (lastSuccess.hitCount + ' vị trí · ' + escape(lastSuccess.profile)) : 'Chưa có') + '</div></div>',
     '</div>',
+
+    '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Chọn 1 chạm là chạy ngay)</h2>',
+    '<p class=dim>Chạm 1 thẻ là tự cấu hình đầy đủ (Profile, Đích 2TB, Phạm vi URL &amp; Native); sau đó mở đúng ứng dụng ghi trên thẻ để kiểm tra StoreKit.</p>',
+    quickPacksHtml, '</div>',
 
     '<div class=card><h2>Bảng điều khiển nhanh</h2>',
     '<h3>1. Chọn Profile mapping (7 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',

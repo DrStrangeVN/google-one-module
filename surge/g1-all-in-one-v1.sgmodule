@@ -1,5 +1,5 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.5 Studio Surge (max-size=-1): 7 Profile + com.google.gemini.* (Pro 3T 99%) + Kho 32 SKU (g1.ios.30tb.m) + Longest-Prefix Custom Rules + Liquid Glass UI + Native Protobuf
+#!desc=v2.6 Studio Surge (max-size=-1): Top 5 gói 1 chạm cho iPhone + hướng dẫn đúng app + 7 Profile + com.google.gemini.* + Kho 32 SKU + Native Protobuf
 
 [Header Rewrite]
 http-request ^https:\/\/one\.google\.com\/ header-del Accept-Encoding
