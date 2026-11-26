@@ -1,10 +1,11 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.8.2 Studio (Liquid Glass): Thanh nổi Frame-1 an toàn 200-HTML-only đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.* + Kho 32 SKU + Native Protobuf
+#!desc=v2.8.3 Studio (Liquid Glass): Chặn gộp QUIC *.google.com + thanh nổi Frame-1 an toàn đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.* + Kho 32 SKU + Native Protobuf
 #!system=ios
 
 [Rule]
-# Chỉ chặn UDP 443 trên 2 domain Google One để không ảnh hưởng HTTP/3 của các app khác.
+# Chỉ chặn UDP 443 trên *.google.com và subscriptionsmobile-pa để ngăn Cronet gộp kết nối QUIC (không ảnh hưởng HTTP/3 ngoài Google).
 AND,((DOMAIN,one.google.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
+AND,((DOMAIN-SUFFIX,google.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP
 
 [Header Rewrite]
