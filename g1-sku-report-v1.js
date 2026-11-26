@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.7). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.8). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.7";
+  var VERSION = "aio-v2.8";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -224,6 +224,7 @@
   var actionMessage = "";
   var errorMessage = "";
   var redirectLocation = "";
+  var redirectAuto = true;
   var prefillFrom = "";
   if (typeof query.prefillFrom === "string") {
     var candFrom = query.prefillFrom.trim();
@@ -235,17 +236,34 @@
 
   handleActions();
   if (redirectLocation) {
-    console.log("[g1-sku-report-v1] " + VERSION + " redirect-back");
+    console.log("[g1-sku-report-v1] " + VERSION + (redirectAuto ? " bounce-back" : " confirm-back"));
+    var safeRedirect = escape(redirectLocation);
+    var bounceMeta = redirectAuto ? '<meta http-equiv="refresh" content="0;url=' + safeRedirect + '">' : "";
+    var bounceHtml =
+      "<!doctype html><html lang=vi><meta charset=utf-8>" +
+      "<meta name=viewport content=\"width=device-width,initial-scale=1,viewport-fit=cover\">" +
+      bounceMeta +
+      "<title>ALL IN ONE_V1 · Đang áp dụng</title>" +
+      "<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;background:#0C0E14;color:#F3F5F9;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"SF Pro Text\",sans-serif}" +
+      ".box{max-width:460px;width:100%;background:#151822;border:1px solid rgba(255,255,255,0.14);border-radius:16px;padding:18px}" +
+      "h1{margin:0 0 8px;font-size:16px}p{margin:0 0 14px;color:#A7B0C5;font-size:13px}" +
+      ".acts{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:99px;font-weight:600;font-size:13px;text-decoration:none}" +
+      ".pri{background:#2563EB;color:#fff}.sec{background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.14)}</style>" +
+      "<div class=box><h1>ALL IN ONE_V1 · " + VERSION + "</h1>" +
+      "<p>" + escape(actionMessage || "Đã cập nhật cấu hình.") + (redirectAuto ? " Đang tự quay lại trang Google One..." : "") + "</p>" +
+      "<div class=acts><a class=\"btn pri\" href=\"" + safeRedirect + "\">Quay lại trang Google One ngay</a>" +
+      "<a class=\"btn sec\" href=\"" + ROOT + "\">Mở Studio &amp; Báo cáo</a></div></div>";
     $done({
       response: {
-        status: 302,
+        status: 200,
         headers: {
-          "Location": redirectLocation,
+          "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
           "X-G1-Report-Version": VERSION,
-          "X-Content-Type-Options": "nosniff"
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
         },
-        body: ""
+        body: bounceHtml
       }
     });
     return;
@@ -260,14 +278,7 @@
     var noHash = raw.split("#")[0];
     if (!/^https:\/\/one\.google\.com\//.test(noHash)) return "";
     if (/^https:\/\/one\.google\.com\/g1-sku-report(?:\/|\?|$)/.test(noHash)) return "";
-    var qIdx = noHash.indexOf("?");
-    var base = qIdx === -1 ? noHash : noHash.slice(0, qIdx);
-    var qs = qIdx === -1 ? "" : noHash.slice(qIdx + 1);
-    var kept = qs ? qs.split("&").filter(function (pair) {
-      return pair && pair !== "_g1ts" && pair.indexOf("_g1ts=") !== 0;
-    }) : [];
-    kept.push("_g1ts=" + Date.now());
-    return base + "?" + kept.join("&");
+    return noHash;
   }
 
   function resolveInitialTab() {
@@ -516,7 +527,10 @@
         actionMessage = "Đã bật " + pack.title + " — " + pack.app + ".";
         if (query.back) {
           var quickBack = sanitizeBackUrl(query.back);
-          if (quickBack) redirectLocation = quickBack;
+          if (quickBack) {
+            redirectLocation = quickBack;
+            redirectAuto = pack.id !== "iphone-2-gemini-99p";
+          }
         }
       }
       return;

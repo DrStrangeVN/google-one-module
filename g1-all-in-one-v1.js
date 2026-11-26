@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.7 Studio): Fast No-Blur Floating HUD with In-App Top 5 Switcher & 302 Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.8 Studio): Strict 200-HTML-Only Fast Floating HUD with In-App Top 5 Switcher & Meta-Refresh Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.7";
+  var VERSION = "g1-aio-v2.8";
   var HUD_PACKS = [
     { id: "iphone-1-ultra-1m", label: "#1 Ultra 1M 0đ", app: "Google App", profile: "ultra-1m-free", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" },
     { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Gemini", app: "App Gemini", profile: "promo-90p", target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p", rewriteScope: "extended", nativeMode: "rewrite" },
@@ -247,7 +247,7 @@
 
     if (cfg.strictCatalog) {
       var hasPromo = extracted.some(function (id) {
-        return /(?:acq|_90p|_85p|_83p|_75p|_eft|subs_variant)$/.test(id);
+        return /(?:acq|_99p|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_eft|subs_variant)$/.test(id);
       });
       if (!hasPromo) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
@@ -407,30 +407,36 @@
 
   function buildBackUrl(reqUrl) {
     var noHash = reqUrl.split("#")[0];
+    if (noHash.length <= 1024) return noHash;
     var qIdx = noHash.indexOf("?");
-    if (qIdx === -1) return noHash.length <= 1024 ? noHash : noHash.slice(0, 1024);
-    var base = noHash.slice(0, qIdx);
-    var rawQs = noHash.slice(qIdx + 1);
-    var kept = rawQs ? rawQs.split("&").filter(function (pair) {
-      return pair && pair !== "_g1ts" && pair.indexOf("_g1ts=") !== 0;
-    }) : [];
-    var rebuilt = kept.length ? base + "?" + kept.join("&") : base;
-    return rebuilt.length <= 1024 ? rebuilt : base;
+    return qIdx === -1 ? noHash.slice(0, 1024) : noHash.slice(0, qIdx);
   }
 
-  function injectOverlayPanel(html, cfg, mappings, hits, statusNote) {
-    if (typeof html !== "string" || !html) return html;
-    var closeIdx = html.lastIndexOf("</body>");
-    if (closeIdx === -1) closeIdx = html.lastIndexOf("</BODY>");
-    if (closeIdx === -1 || html.indexOf('data-g1-hud="1"') !== -1) return html;
+  function isSafeHtmlForHud(html) {
+    if (typeof html !== "string" || !html) return false;
+    if (getResponseStatus() !== 200 || hasResponseLocationHeader()) return false;
+    var ct = getResponseContentType();
+    if (ct && ct.indexOf("text/html") === -1) return false;
+    if (html.lastIndexOf("</body>") === -1) return false;
+    if (html.indexOf('data-g1-hud="1"') !== -1) return false;
     var firstIdx = 0;
     while (firstIdx < html.length && html.charCodeAt(firstIdx) <= 32) {
       firstIdx++;
     }
     var firstCh = html.charAt(firstIdx);
     if (firstCh === "{" || firstCh === "[" || html.slice(firstIdx, firstIdx + 4) === ")]}'") {
-      return html;
+      return false;
     }
+    if (html.indexOf("302 Moved") !== -1 || html.indexOf("301 Moved") !== -1) {
+      return false;
+    }
+    return html.indexOf("<html") !== -1 || html.indexOf("<HTML") !== -1 ||
+      html.indexOf("<!doctype") !== -1 || html.indexOf("<!DOCTYPE") !== -1;
+  }
+
+  function injectOverlayPanel(html, cfg, mappings, hits, statusNote) {
+    if (!isSafeHtmlForHud(html)) return html;
+    var closeIdx = html.lastIndexOf("</body>");
     var keys = Object.keys(mappings).sort();
     var rows = keys.map(function (id) {
       var m = mappings[id];
@@ -454,7 +460,7 @@
       var btnStyle = isOn
         ? 'display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;border:1px solid #3B82F6;text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:700;font-size:11px;'
         : 'display:inline-flex;align-items:center;background:rgba(255,255,255,0.07);color:#E5E7EB;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:5px 10px;border-radius:99px;font-weight:600;font-size:11px;';
-      return '<a href="https://one.google.com/g1-sku-report?action=quick&pack=' + p.id + '&back=' + backParam +
+      return '<a href="https://one.google.com/g1-sku-report?action=quick&amp;pack=' + p.id + '&amp;back=' + backParam +
         '" style="' + btnStyle + '">' + escHtml(p.label) + '</a>';
     }).join("");
     var geminiNotice = activePackId === "iphone-2-gemini-99p"
@@ -480,7 +486,7 @@
       geminiNotice + mappingBlock +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
       '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
-      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
+      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&amp;back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
       '</div></div></details>';
     return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
   }
@@ -675,19 +681,40 @@
     return null;
   }
 
-  function getResponseContentType() {
+  function getResponseHeader(name) {
     if (typeof $response !== "object" || !$response || !$response.headers) return "";
     var headers = $response.headers;
+    var target = name.toLowerCase();
     if (typeof headers.get === "function") {
-      return String(headers.get("content-type") || "").toLowerCase();
+      return String(headers.get(target) || headers.get(name) || "");
     }
     var keys = Object.keys(headers);
     for (var i = 0; i < keys.length; i++) {
-      if (keys[i].toLowerCase() === "content-type") {
-        return String(headers[keys[i]] || "").toLowerCase();
+      if (keys[i].toLowerCase() === target) {
+        return String(headers[keys[i]] || "");
       }
     }
     return "";
+  }
+
+  function getResponseContentType() {
+    return getResponseHeader("content-type").toLowerCase();
+  }
+
+  function hasResponseLocationHeader() {
+    return getResponseHeader("location").trim() !== "";
+  }
+
+  function getResponseStatus() {
+    if (typeof $response !== "object" || !$response) return 200;
+    var raw = $response.status !== undefined ? $response.status : $response.statusCode;
+    if (raw === undefined || raw === null) return 200;
+    if (typeof raw === "number") return isFinite(raw) ? raw : 0;
+    if (typeof raw === "string") {
+      var m = raw.match(/\b(\d{3})\b/);
+      return m ? Number(m[1]) : 0;
+    }
+    return 0;
   }
 
   function collectFromText(originalBody, routeLabel) {
