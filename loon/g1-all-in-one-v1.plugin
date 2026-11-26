@@ -1,14 +1,14 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.8.1 Studio (Loon Fix): Chuẩn hóa rule AND 2 vế REJECT-DROP + thanh nổi 200-HTML-only đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.* + Kho 32 SKU
+#!desc=v2.8.2 Studio (Loon Fast): Tăng tốc thanh nổi Frame-1 + bỏ qua file tĩnh + REJECT QUIC tức thì + đổi 5 gói tự tải lại + 7 Profile + com.google.gemini.*
 #!author=DrStrangeVN
 #!system=ios
 #!homepage=https://github.com/DrStrangeVN/google-one-module
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Google.png
 
 [Rule]
-# Chỉ chặn UDP (QUIC) trên 2 domain Google One bằng cú pháp AND 2 vế chuẩn Loon.
-AND,((DOMAIN,one.google.com),(PROTOCOL,UDP)),REJECT-DROP
-AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP)),REJECT-DROP
+# Chặn UDP (QUIC) trên 2 domain Google One bằng REJECT để iOS lùi về TCP ngay lập tức (không chờ drop timeout).
+AND,((DOMAIN,one.google.com),(PROTOCOL,UDP)),REJECT
+AND,((DOMAIN,subscriptionsmobile-pa.googleapis.com),(PROTOCOL,UDP)),REJECT
 
 [Rewrite]
 ^https:\/\/one\.google\.com\/ header-del Accept-Encoding

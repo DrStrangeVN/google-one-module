@@ -803,7 +803,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.8");
+  assert.equal(scan.version, "g1-aio-v2.8.2");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -972,8 +972,8 @@ test("ALL IN ONE_V1 Shadowrocket, Loon and Surge modules have valid scoped QUIC 
       assert.match(content, /DOMAIN,one\.google\.com/);
       assert.match(content, /DOMAIN,subscriptionsmobile-pa\.googleapis\.com/);
       if (entry.type === "loon") {
-        assert.match(content, /^AND,\(\(DOMAIN,one\.google\.com\),\(PROTOCOL,UDP\)\),REJECT-DROP$/m);
-        assert.match(content, /^AND,\(\(DOMAIN,subscriptionsmobile-pa\.googleapis\.com\),\(PROTOCOL,UDP\)\),REJECT-DROP$/m);
+        assert.match(content, /^AND,\(\(DOMAIN,one\.google\.com\),\(PROTOCOL,UDP\)\),REJECT$/m);
+        assert.match(content, /^AND,\(\(DOMAIN,subscriptionsmobile-pa\.googleapis\.com\),\(PROTOCOL,UDP\)\),REJECT$/m);
         assert(!content.includes("max-size="));
         assert(content.includes("enable=true"));
       }
@@ -1083,7 +1083,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.8"));
+  assert(studioHtml.includes("aio-v2.8.2"));
   assert(studioHtml.includes("Kho SKU Cộng Đồng (32 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
@@ -1103,7 +1103,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.8");
+  assert.equal(jsonOut.reportVersion, "aio-v2.8.2");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1360,9 +1360,22 @@ test("ALL IN ONE_V1 v2.6 provides Top 5 1-tap iPhone quick packs and /u/0/* exte
   assert.equal(get(storage, CONFIG_KEY).profile, "ultra-75p");
 });
 
-test("ALL IN ONE_V1 v2.8 guards HUD strictly to 200 text/html and uses safe meta-refresh reload", () => {
+test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <body>, fast-skips static assets and uses meta-refresh", () => {
   const storage = new Map();
   const redirectStub = "<HTML><HEAD><TITLE>302 Moved</TITLE></HEAD><BODY><H1>302 Moved</H1></BODY></HTML>";
+
+  // 0. Static assets (CSS/image/font) bypass decoding & SCAN_KEY writes completely
+  for (const staticCt of ["text/css; charset=utf-8", "image/png", "font/woff2"]) {
+    const stRes = run("g1-all-in-one-v1.js", {
+      url: "https://one.google.com/ai?hl=vi",
+      body: SOURCE,
+      responseStatus: 200,
+      responseHeaders: { "content-type": staticCt },
+      storage
+    });
+    assert.deepEqual(stRes.payload, {});
+  }
+  assert.equal(storage.has(SCAN_KEY), false);
 
   // 1. Regression guard: 302/404 redirects and Location headers must NEVER be mutated on any plan route
   for (const redirUrl of [
@@ -1409,16 +1422,17 @@ test("ALL IN ONE_V1 v2.8 guards HUD strictly to 200 text/html and uses safe meta
     assert.deepEqual(nonHtml.payload, {});
   }
 
-  // 3. Valid 200 text/html plan page injects lightweight 5-pack HUD with clean back URL and &amp; escaped links
-  const html0 = "<!doctype html><html><body><div>No SKU here</div></body></html>";
+  // 3. Valid 200 text/html (or empty-string status) plan page injects HUD right after <body...> (Frame-1)
+  const html0 = '<!doctype html><html><head><title>G1</title></head><body class="g1"><div>No SKU here</div></body></html>';
   const res0 = run("g1-all-in-one-v1.js", {
     url: "https://one.google.com/ai?hl=vi",
     body: html0,
-    responseStatus: 200,
+    responseStatus: "",
     responseHeaders: { "content-type": "text/html; charset=utf-8" },
     storage
   });
   assert(res0.payload.body.includes('data-g1-hud="1"'));
+  assert(res0.payload.body.indexOf('data-g1-hud="1"') < res0.payload.body.indexOf('<div>No SKU here</div>'));
   assert(!res0.payload.body.includes("backdrop-filter"));
   assert(!res0.payload.body.includes("linear-gradient"));
   assert(!res0.payload.body.includes("radial-gradient"));

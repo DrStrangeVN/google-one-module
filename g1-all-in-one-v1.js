@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.8 Studio): Strict 200-HTML-Only Fast Floating HUD with In-App Top 5 Switcher & Meta-Refresh Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.8.2 Studio): Frame-1 Fast Floating HUD, Static-Asset Fast-Skip, Strict 200-HTML-Only Guard, In-App Top 5 Switcher & Meta-Refresh Auto-Reload, 7 Profiles, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.8";
+  var VERSION = "g1-aio-v2.8.2";
   var HUD_PACKS = [
     { id: "iphone-1-ultra-1m", label: "#1 Ultra 1M 0đ", app: "Google App", profile: "ultra-1m-free", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" },
     { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Gemini", app: "App Gemini", profile: "promo-90p", target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p", rewriteScope: "extended", nativeMode: "rewrite" },
@@ -99,7 +99,23 @@
     return injectOverlayPanel(htmlText, cfg, mappings, hits, statusNote);
   }
 
+  function isStaticAssetContentType(ct) {
+    return /^(?:image\/|font\/|video\/|audio\/|text\/css\b|application\/wasm\b)/.test(ct);
+  }
+
+  function hasCandidatePrefix(text) {
+    return text.indexOf("g1.") !== -1 ||
+      text.indexOf("com.google.one.") !== -1 ||
+      text.indexOf("com.google.gemini.") !== -1;
+  }
+
   function handleWeb(responseBody, cfg) {
+    var ct = getResponseContentType();
+    if (ct && isStaticAssetContentType(ct)) {
+      $done({});
+      return;
+    }
+
     var body = decodeTextBody(responseBody);
     var scanResult = { addedCount: 0, candidateCount: 0 };
 
@@ -158,21 +174,23 @@
     var out = body;
 
     if (typeof body === "string") {
-      var observed = body.match(/g1\.[a-z0-9._]{2,80}acq/g) || [];
-      out = body.replace(
-        /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
-        function (match, before, id) {
-          var resolved = resolveTarget(id, observed, cfg);
-          if (!resolved) return match;
-          if (!mappings[id]) {
-            mappings[id] = { id: id, to: resolved.to, count: 0, fallback: resolved.fallback };
+      if (hasCandidatePrefix(body)) {
+        var observed = body.match(/g1\.[a-z0-9._]{2,80}acq/g) || [];
+        out = body.replace(
+          /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
+          function (match, before, id) {
+            var resolved = resolveTarget(id, observed, cfg);
+            if (!resolved) return match;
+            if (!mappings[id]) {
+              mappings[id] = { id: id, to: resolved.to, count: 0, fallback: resolved.fallback };
+            }
+            mappings[id].count += 1;
+            hits += 1;
+            if (resolved.is2tb) annualHits += 1;
+            return before + resolved.to;
           }
-          mappings[id].count += 1;
-          hits += 1;
-          if (resolved.is2tb) annualHits += 1;
-          return before + resolved.to;
-        }
-      );
+        );
+      }
 
       if (cfg.overlayPanel && (isPlanPageUrl(url) || hits > 0)) {
         out = injectOverlayPanel(out, cfg, mappings, hits, hits ? "" : "Chưa khớp");
@@ -488,7 +506,20 @@
       '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
       '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&amp;back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
       '</div></div></details>';
-    return html.slice(0, closeIdx) + panel + html.slice(closeIdx);
+    var headEnd = html.indexOf("</head>");
+    if (headEnd === -1) headEnd = html.indexOf("</HEAD>");
+    var bodyPos = html.indexOf("<body", headEnd !== -1 ? headEnd : 0);
+    var insertIdx = closeIdx;
+    if (bodyPos !== -1 && bodyPos < closeIdx) {
+      var afterBody = html.charAt(bodyPos + 5);
+      if (afterBody === ">" || afterBody === " " || afterBody === "\t" || afterBody === "\n" || afterBody === "\r") {
+        var bodyTagEnd = html.indexOf(">", bodyPos + 5);
+        if (bodyTagEnd !== -1 && bodyTagEnd < closeIdx) {
+          insertIdx = bodyTagEnd + 1;
+        }
+      }
+    }
+    return html.slice(0, insertIdx) + panel + html.slice(insertIdx);
   }
 
   function escHtml(s) {
@@ -708,7 +739,7 @@
   function getResponseStatus() {
     if (typeof $response !== "object" || !$response) return 200;
     var raw = $response.status !== undefined ? $response.status : $response.statusCode;
-    if (raw === undefined || raw === null) return 200;
+    if (raw === undefined || raw === null || raw === "") return 200;
     if (typeof raw === "number") return isFinite(raw) ? raw : 0;
     if (typeof raw === "string") {
       var m = raw.match(/\b(\d{3})\b/);
@@ -721,11 +752,15 @@
     var isText = typeof originalBody === "string";
     var tokens = [];
     if (isText) {
-      var text = originalBody.replace(/\\u002e|\\x2e|&#0*46;|&#x0*2e;|&period;/gi, ".");
-      var tokenRx = /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g;
-      var match;
-      while ((match = tokenRx.exec(text)) !== null) {
-        tokens.push(match[2]);
+      var text = /\\u002e|\\x2e|&#0*46;|&#x0*2e;|&period;/i.test(originalBody)
+        ? originalBody.replace(/\\u002e|\\x2e|&#0*46;|&#x0*2e;|&period;/gi, ".")
+        : originalBody;
+      if (hasCandidatePrefix(text)) {
+        var tokenRx = /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g;
+        var match;
+        while ((match = tokenRx.exec(text)) !== null) {
+          tokens.push(match[2]);
+        }
       }
     }
     return recordScan(tokens, routeLabel, isText);
