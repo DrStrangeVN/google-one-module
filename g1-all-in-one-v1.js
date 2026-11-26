@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.4 Studio): 7 Profiles (incl. Ultra 75p, v7.6-eft & Hybrid Combo), g1.ios.ai.2tb.* support, Prefix/Exact toggleable Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
+/* Google One ALL IN ONE_V1 (v2.5 Studio): 7 Profiles, g1.* + com.google.gemini.* namespaces, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog, Anti-Wipe History & Liquid Glass Overlay. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.4";
+  var VERSION = "g1-aio-v2.5";
   var SOURCE_PREFIX = "g1.ios.2tb.";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var ULTRA_1M_TARGET = "g1.ai.ultra.1month_eft.acq";
@@ -52,8 +52,8 @@
   var OTHER_PATH = "[Đường dẫn one.google.com khác]";
   var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
   var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
-  var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
-  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,159}\.$/;
+  var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,160}$/;
+  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,159}\.$/;
   var url = typeof $request === "object" && $request ? $request.url : "";
 
   if (typeof url !== "string") {
@@ -122,7 +122,7 @@
     }
 
     if (typeof body === "string" && cfg.strictCatalog) {
-      var promoCatalog = body.match(/g1\.[a-z0-9._]{2,80}(?:acq|_90p|_85p|_83p|_75p|_eft|subs_variant)/g) || [];
+      var promoCatalog = body.match(/(?:g1|com\.google\.gemini)\.[a-z0-9._]{2,80}(?:acq|_99p|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_eft|subs_variant)/g) || [];
       if (!promoCatalog.length) {
         saveTestRecord(cfg, Object.create(null), 0, 0, "skipped-strict-catalog");
         console.log("[g1-aio-v1] strictCatalog=on, no promo SKUs in catalog -> passthrough");
@@ -139,7 +139,7 @@
     if (typeof body === "string") {
       var observed = body.match(/g1\.[a-z0-9._]{2,80}acq/g) || [];
       out = body.replace(
-        /(^|[^A-Za-z0-9._@%-])(g1\.[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
+        /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g,
         function (match, before, id) {
           var resolved = resolveTarget(id, observed, cfg);
           if (!resolved) return match;
@@ -266,14 +266,16 @@
 
   function is2tbSource(id) {
     return (id.indexOf("g1.ios.2tb.") === 0 && id.length > 11) ||
-      (id.indexOf("g1.ios.ai.2tb.") === 0 && id.length > 14);
+      (id.indexOf("g1.ios.ai.2tb.") === 0 && id.length > 14) ||
+      (id.indexOf("com.google.gemini.2tb.") === 0 && id.length > 22);
   }
 
   function resolveTarget(id, observedList, cfg) {
     var is2tb = is2tbSource(id);
 
     // Priority 1: User-defined custom rules apply only in "custom-only" profile
-    // or when customRulesOverride is explicitly enabled. Exact rules run before prefix rules.
+    // or when customRulesOverride is explicitly enabled. Exact rules run before
+    // prefix rules, and longer prefixes override shorter prefixes.
     if (cfg.profile === "custom-only" || cfg.customRulesOverride === true) {
       var i;
       for (i = 0; i < cfg.customRules.length; i++) {
@@ -282,12 +284,18 @@
           return { to: rExact.to, fallback: false, is2tb: is2tb };
         }
       }
+      var bestPrefix = null;
       for (i = 0; i < cfg.customRules.length; i++) {
         var rPrefix = cfg.customRules[i];
         if (rPrefix.enabled !== false && rPrefix.match === "prefix" &&
             id.indexOf(rPrefix.from) === 0 && id.length > rPrefix.from.length) {
-          return { to: rPrefix.to, fallback: false, is2tb: is2tb };
+          if (!bestPrefix || rPrefix.from.length > bestPrefix.from.length) {
+            bestPrefix = rPrefix;
+          }
         }
+      }
+      if (bestPrefix) {
+        return { to: bestPrefix.to, fallback: false, is2tb: is2tb };
       }
     }
 
@@ -608,7 +616,7 @@
     var tokens = [];
     if (isText) {
       var text = originalBody.replace(/\\u002e|\\x2e|&#0*46;|&#x0*2e;|&period;/gi, ".");
-      var tokenRx = /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g;
+      var tokenRx = /(^|[^A-Za-z0-9._@%-])((?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]+)(?=$|[^A-Za-z0-9._-])/g;
       var match;
       while ((match = tokenRx.exec(text)) !== null) {
         tokens.push(match[2]);
@@ -1053,7 +1061,7 @@
       if (parsed.mode === "auto" || parsed.mode === "scan-only" || parsed.mode === "rewrite-only") {
         defaults.mode = parsed.mode;
       }
-      if (typeof parsed.target2tb === "string" && /^g1\.[A-Za-z0-9._-]{1,160}$/.test(parsed.target2tb)) {
+      if (typeof parsed.target2tb === "string" && /^(?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,160}$/.test(parsed.target2tb)) {
         defaults.target2tb = parsed.target2tb;
       }
       if (parsed.enable2tb === false) defaults.enable2tb = false;

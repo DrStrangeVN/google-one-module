@@ -802,7 +802,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.4");
+  assert.equal(scan.version, "g1-aio-v2.5");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1076,14 +1076,17 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.4"));
-  assert(studioHtml.includes("Kho SKU Cộng Đồng (30 mã chuẩn"));
+  assert(studioHtml.includes("aio-v2.5"));
+  assert(studioHtml.includes("Kho SKU Cộng Đồng (32 mã chuẩn"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
   assert(studioHtml.includes("g1.20tb.3months_ip_80p"));
   assert(studioHtml.includes("g1.helium.12months_ip_90p"));
   assert(studioHtml.includes("g1.ai.pro.12months_eft"));
   assert(studioHtml.includes("g1.ios.ai.2tb.m.ip_3mo_75p.acq"));
   assert(studioHtml.includes("g1.10tb.1month_ip_90p"));
+  assert(studioHtml.includes("com.google.gemini.2tb.ai.m.3month_ip_99p"));
+  assert(studioHtml.includes("g1.ios.30tb.m"));
+  assert(studioHtml.includes("Map nút 30TB"));
   assert(studioHtml.includes("Purchase not completed"));
   assert(studioHtml.includes("Ultra 75p cố định (v7.8)"));
   assert(studioHtml.includes("NotebookLM"));
@@ -1092,9 +1095,54 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.4");
+  assert.equal(jsonOut.reportVersion, "aio-v2.5");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
+});
+
+test("ALL IN ONE_V1 v2.5 supports com.google.gemini.* namespace, Pro 3M 99p preset, and Longest-Prefix-Wins", () => {
+  const GEMINI_SRC = "com.google.gemini.2tb.ai.m";
+  const GEMINI_99P = "com.google.gemini.2tb.ai.m.3month_ip_99p";
+
+  // 1. Choosing Pro 3T 99% preset collects and rewrites both com.google.gemini.2tb.* and g1.ios.2tb.*
+  const gStorage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=preset&target2tb=" + encodeURIComponent(GEMINI_99P),
+    storage: gStorage
+  });
+  assert.equal(get(gStorage, CONFIG_KEY).target2tb, GEMINI_99P);
+  const gRes = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify([GEMINI_SRC, SOURCE]),
+    storage: gStorage
+  });
+  assert.deepEqual(JSON.parse(gRes.payload.body), [GEMINI_99P, GEMINI_99P]);
+  const gScan = get(gStorage, SCAN_KEY);
+  assert(gScan.skus.some(s => s.id === GEMINI_SRC));
+
+  const gHtml = run("g1-sku-report-v1.js", { url: REPORT + "?tab=scanned", storage: gStorage }).payload.response.body;
+  assert(gHtml.includes('<span class="st-pill st-ok">Gemini</span>'));
+  assert(!gHtml.includes("linear-gradient"));
+  assert(!/<(?:script|img|iframe)\b/i.test(gHtml));
+
+  // 2. Longest-Prefix-Wins: add longer rule first or shorter rule first -> longer prefix always wins
+  const lpStorage = new Map();
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=custom-only",
+    storage: lpStorage
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&match=prefix&fromCustom=g1.ios.&to=g1.2tb.ai.annual",
+    storage: lpStorage
+  });
+  run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=add-rule&match=prefix&fromCustom=g1.ios.ai.2tb.&to=" + encodeURIComponent(GEMINI_99P),
+    storage: lpStorage
+  });
+  const lpRes = run("g1-all-in-one-v1.js", {
+    body: JSON.stringify(["g1.ios.100gb.m", "g1.ios.ai.2tb.m.ip_1mo_90p.acq"]),
+    storage: lpStorage
+  });
+  assert.deepEqual(JSON.parse(lpRes.payload.body), ["g1.2tb.ai.annual", GEMINI_99P]);
 });
 
 test("ALL IN ONE_V1 v2.4 supports ultra-75p profile, Prefix/Exact toggleable Custom Rules, prefillFrom & Scanned badges", () => {

@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.4). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.5). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.4";
+  var VERSION = "aio-v2.5";
   var DEFAULT_TARGET = "g1.2tb.ai.12months_ip_90p";
   var LEGACY_TARGET = "g1.2tb.ai.annual";
   var SCAN_KEY = "g1.sku.scan.v1";
@@ -13,12 +13,13 @@
   var OTHER_PATH = "[Đường dẫn one.google.com khác]";
   var LEGACY_OTHER_PATH = "[其他 one.google.com 路径]";
   var NATIVE_PATH = "native:GetDynamicStorefrontInfo";
-  var VALID_SKU = /^g1\.[A-Za-z0-9._-]{1,160}$/;
-  var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,160}$/;
-  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.)[A-Za-z0-9._-]{1,159}\.$/;
+  var VALID_SKU = /^(?:g1\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,160}$/;
+  var VALID_TOKEN = /^(?:g\d+\.[A-Za-z0-9_-]+\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,160}$/;
+  var VALID_PREFIX = /^(?:g\d+\.|com\.google\.one\.|com\.google\.gemini\.)[A-Za-z0-9._-]{1,159}\.$/;
 
   var PRESETS = [
     { id: "g1.2tb.ai.12months_ip_90p", label: "12T Giảm 90% (v7.5)" },
+    { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", label: "Pro 3T 99% (Gemini)" },
     { id: "g1.ai.ultra.1month_eft.acq", label: "Ultra 30TB · 1T Free" },
     { id: "g1.ai.ultra.3months_ip_75p.acq", label: "Ultra 30TB · 3T 75p" },
     { id: "g1.20tb.1month_eft.acq", label: "Ultra 20TB · 1T Free" },
@@ -35,6 +36,7 @@
     { id: "g1.ios.2tb.m.3month_ip_75p", label: "2 TB · 3T 75p (g1.ios.2tb.m.3month_ip_75p)" },
     { id: "g1.ios.2tb.ai.m", label: "AI Pro 5TB · Tháng (g1.ios.2tb.ai.m)" },
     { id: "g1.ios.2tb.ai.a", label: "AI Pro 5TB · Năm (g1.ios.2tb.ai.a)" },
+    { id: "com.google.gemini.2tb.ai.m", label: "Gemini AI Pro 2TB · Tháng (com.google.gemini.2tb.ai.m)" },
     { id: "g1.ios.ai.2tb.m.ip_1mo_90p.acq", label: "AI 2TB · 1T 90p (g1.ios.ai.2tb.m.ip_1mo_90p.acq)" },
     { id: "g1.ios.ai.2tb.a.ip_1yr_10p.acq", label: "AI 2TB · 1Y 10p (g1.ios.ai.2tb.a.ip_1yr_10p.acq)" },
     { id: "g1.ios.20tb.m.v2", label: "Ultra 20TB · Tháng (g1.ios.20tb.m.v2)" },
@@ -67,8 +69,9 @@
       ]
     },
     {
-      title: "iOS & Play · Intro Price Giảm 50% – 95% (_ip_)",
+      title: "iOS, Gemini & Play · Intro Price Giảm 50% – 99% (_ip_)",
       items: [
+        { id: "com.google.gemini.2tb.ai.m.3month_ip_99p", tag: "Gemini · 99%", cls: "st-ok", note: "AI Pro 2TB · 3 tháng giảm 99% (mở trong app Gemini iOS)" },
         { id: "g1.2tb.ai.12months_ip_90p", tag: "GIẢM 90%", cls: "st-info", note: "AI Pro · 12 tháng giảm 90% (v7.5/v7.6)" },
         { id: "g1.20tb.3months_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 90%" },
         { id: "g1.20tb.3months_ip_80p", tag: "GIẢM 80%", cls: "st-info", note: "Ultra 20TB · 3 tháng giảm 80%" },
@@ -85,8 +88,9 @@
       ]
     },
     {
-      title: "Play & Chuẩn · Stacking & Gói Năm",
+      title: "Play & Chuẩn · Stacking, Gói Năm & Mã Cũ",
       items: [
+        { id: "g1.ios.30tb.m", tag: "iOS · TR CŨ", cls: "st-info", note: "Ultra 30TB · Mã iOS cũ (v7.10 ghi nhận 2.949,99 TRY)" },
         { id: "g1.2tb.ai.subs_variant", tag: "Play ID", cls: "st-warn", note: "AI Pro · Stacking variant (Android Play)" },
         { id: "g1.2tb.ai.annual", tag: "NĂM", cls: "st-muted", note: "AI Pro · Gói năm tiêu chuẩn" },
         { id: "g1.2tb.ai.annual_ip_90p.acq", tag: "iOS · GIẢM 90%", cls: "st-info", note: "AI Pro · Gói năm giảm 90%" }
@@ -451,7 +455,7 @@
     if (query.action === "save") {
       var candidate = typeof query.target2tb === "string" ? query.target2tb.trim() : "";
       if (!VALID_SKU.test(candidate)) {
-        errorMessage = "Mã SKU 2TB không hợp lệ (phải bắt đầu bằng g1. và chỉ chứa chữ, số, ., _, -). Đã giữ nguyên cấu hình cũ.";
+        errorMessage = "Mã SKU 2TB không hợp lệ (phải bắt đầu bằng g1., com.google.one. hoặc com.google.gemini.). Đã giữ nguyên cấu hình cũ.";
         return;
       }
       cfg.target2tb = candidate;
@@ -492,7 +496,7 @@
     return typeof value === "string" && VALID_SKU.test(value) ? value : "";
   }
   function isPromoSku(id) {
-    return /(?:acq|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_25p|_10p|_ip\.|_eft|subs_variant|12months|annual|3months|6months|2months|1month)/i.test(id);
+    return /(?:acq|_99p|_95p|_90p|_85p|_83p|_80p|_75p|_50p|_25p|_10p|_ip\.|_eft|subs_variant|12months|annual|3months|6months|2months|1month)/i.test(id);
   }
   function describeSku(id) {
     var tier = /ultra|30tb/i.test(id) ? "Ultra 30TB" :
@@ -726,13 +730,15 @@
         var isPromo = isPromoSku(row.id);
         var isIos = row.id.indexOf("g1.ios.") === 0;
         var rowCls = [isPromo ? "row-promo" : "row-other", isIos ? "row-ios" : ""].join(" ").trim();
-        var originBadge = row.id.indexOf("g1.ios.ai.2tb.") === 0
-          ? " <span class=\"st-pill st-info\">AI 2TB</span>"
-          : isIos
-            ? " <span class=\"st-pill st-muted\">iOS</span>"
-            : /^(?:g1\.play\.|g1\.10tb\.|g1\.2tb\.ai\.(?:18|15|12)months_eft$|g1\.2tb\.1year_eft$|g1\.helium\.12months_ip_90p$|.*subs_variant$)/.test(row.id)
-              ? " <span class=\"st-pill st-warn\">Play</span>"
-              : "";
+        var originBadge = row.id.indexOf("com.google.gemini.") === 0
+          ? " <span class=\"st-pill st-ok\">Gemini</span>"
+          : row.id.indexOf("g1.ios.ai.2tb.") === 0
+            ? " <span class=\"st-pill st-info\">AI 2TB</span>"
+            : isIos
+              ? " <span class=\"st-pill st-muted\">iOS</span>"
+              : /^(?:g1\.play\.|g1\.10tb\.|g1\.2tb\.ai\.(?:18|15|12)months_eft$|g1\.2tb\.1year_eft$|g1\.helium\.12months_ip_90p$|.*subs_variant$)/.test(row.id)
+                ? " <span class=\"st-pill st-warn\">Play</span>"
+                : "";
         var promoBadge = isPromo ? " <span class=tag-promo>PROMO</span>" : "";
         var actionsHtml = [];
         if (VALID_SKU.test(row.id)) {
@@ -836,6 +842,7 @@
           '<a class=mini-btn href="' + ROOT + '?action=preset&target2tb=' + encodeURIComponent(item.id) + '&tab=vault">Đặt đích 2TB</a>' +
           '<a class=mini-btn href="' + ROOT + '?action=add-rule&from=g1.ios.100gb.m&to=' + encodeURIComponent(item.id) + '&tab=vault">Map nút 100GB</a>' +
           '<a class=mini-btn href="' + ROOT + '?action=add-rule&from=g1.ios.20tb.m.v2&to=' + encodeURIComponent(item.id) + '&tab=vault">Map nút 20TB</a>' +
+          '<a class=mini-btn href="' + ROOT + '?action=add-rule&from=g1.ios.30tb.ai.pro.m&to=' + encodeURIComponent(item.id) + '&tab=vault">Map nút 30TB</a>' +
           '</div></div>';
       }).join("") + '</div></div>';
   }).join("");
@@ -1042,7 +1049,7 @@
 
     /* ---------- TAB 2: SKU VAULT ---------- */
     '<section class=pane id=pane-vault>',
-    '<div class=card><h2>Kho SKU Cộng Đồng (30 mã chuẩn · 1 chạm để gán)</h2>',
+    '<div class=card><h2>Kho SKU Cộng Đồng (32 mã chuẩn · 1 chạm để gán)</h2>',
     '<p class=dim>Phân biệt rõ mã <strong>iOS (<code>*.acq</code>)</strong> và mã <strong>Android Play (<code>Play ID</code>)</strong>. Lưu ý: KHÔNG bật MITM cho <code>*.apple.com</code> hoặc <code>*.icloud.com</code> để tránh lỗi StoreKit khi thanh toán.</p>',
     vaultHtml, '</div></section>',
 

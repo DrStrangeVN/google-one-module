@@ -33,8 +33,8 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module tại một thời điểm.)*
 
-* **Nâng cấp so với bản chính (v2.4 Studio — đồng bộ `crhywun/g1-acq` v7.8.0/v7.9.0, `Dgkncn/g1-acq-plus` v8.0.0 & `sku-atlas.md`):**
-  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.4`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
+* **Nâng cấp so với bản chính (v2.5 Studio — đồng bộ `crhywun/g1-acq` v7.10.0, `Rulanv/g1-acq-in3m` & `sku-atlas.md`):**
+  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.5`)**: Chia 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), thanh điều hướng nổi dưới đáy trên iPhone & sidebar kính mờ trên desktop/iPad, công tắc iOS, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục cấu hình JSON.
   * **7 Profile chuyển 1 chạm:**
     1. `promo-90p` (Mặc định): Mapping 2TB (`g1.2tb.ai.12months_ip_90p` / tùy chỉnh) + 20TB/30TB `90p`/`75p`.
     2. `ultra-75p` (Theo `crhywun v7.8.0`): 20TB & 30TB cố định **3 tháng giảm 75% (trả 25%)** dùng khi `1M Free` / `90p` bị Google khóa.
@@ -43,9 +43,9 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
     5. `ultra-1m-free`: Ánh xạ **mọi** nút `g1.ios.*` sang `g1.ai.ultra.1month_eft.acq`.
     6. `ultra-free-probe`: Dò cùng lúc 11 nút Tháng/Năm sang các mã `_eft` dài hạn (1–12 tháng).
     7. `custom-only`: Chỉ chạy các **Custom Rules** do bạn tự map.
-  * **Bắt đủ cả 2 tiền tố 2TB trên iOS (`g1.ios.2tb.*` & `g1.ios.ai.2tb.*`)**: Không bỏ sót các nút AI 2TB mới trên trang `one.google.com/ai`.
-  * **Custom Rules chuẩn v7.9.0 (`Exact` / `Prefix`, Bật/Tắt từng rule, 1 chạm `Map rule này`)**: Tối đa 24 rule, nút `Bật/Tắt` không cần xóa, điền sẵn từ tab **Đã Quét**, mặc định `customRulesOverride = false` và nút **Xóa hết** 1 chạm.
-  * **Kho 30 SKU phân loại `AI 2TB` / `iOS` / `Play` + Chống mất log (`Anti-Wipe History`)**: Bổ sung các mã thực tế từ `sku-atlas.md` (`ip_3mo_75p.acq`, `2months_ip_50p`), Pro 10TB, `g1.ai.pro.12months_eft` kèm thẻ **Mẹo xử lý `Purchase not completed`** trong tab **Chẩn Đoán** và lưu riêng `lastSuccess`.
+  * **Hỗ trợ cả 2 namespace `g1.*` & `com.google.gemini.*`**: Bắt đủ `g1.ios.2tb.*`, `g1.ios.ai.2tb.*`, `com.google.gemini.2tb.*` — cho phép test mã **Pro 2TB 3 tháng giảm 99%** (`com.google.gemini.2tb.ai.m.3month_ip_99p`) khi mở nâng cấp ngay trong **app Gemini iOS**.
+  * **Custom Rules chuẩn v7.10.0 (`Exact` / `Longest-Prefix`, Bật/Tắt từng rule, 1 chạm `Map rule này`)**: Tối đa 24 rule, ưu tiên tiền tố dài nhất khi có nhiều rule Prefix, nút `Bật/Tắt` không cần xóa, điền sẵn từ tab **Đã Quét**, mặc định `customRulesOverride = false` và nút **Xóa hết** 1 chạm.
+  * **Kho 32 SKU phân loại `Gemini` / `AI 2TB` / `iOS` / `Play` + Chống mất log (`Anti-Wipe History`)**: Bổ sung `com.google.gemini.2tb.ai.m.3month_ip_99p` (Pro 3T 99%), `g1.ios.30tb.m` (`2.949,99 TRY` TR cũ từ v7.10), các mã `sku-atlas.md` (`ip_3mo_75p.acq`, `2months_ip_50p`), Pro 10TB, `g1.ai.pro.12months_eft` kèm thẻ **Mẹo xử lý `Purchase not completed`** trong tab **Chẩn Đoán** và lưu riêng `lastSuccess`.
   * **Header ổn định & Không MITM Apple**: Chỉ xóa header nén/cache cơ bản (`Accept-Encoding`, `If-None-Match`, `If-Modified-Since`, `Alt-Svc`) và giải mã riêng `one.google.com`, `subscriptionsmobile-pa.googleapis.com`; tuyệt đối giữ nguyên `*.apple.com` / `*.icloud.com`.
 * **Link cài đặt `ALL IN ONE_V1`:**
   * **Shadowrocket (`.sgmodule`):**
