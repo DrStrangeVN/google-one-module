@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.9.2 Studio · Loon Optimized): Native Protobuf Rewrite ON by default for all Top 3 live packs (#1 1-Slot 20TB, #2 Exact Monthly Pro v7.13, #3 TR Ultra 20TB+30TB) — runs directly on App Google One / Gemini / Photos / Drive / Gmail without Google App + Frame-1 Fast Floating HUD + Strict 200-HTML-Only Guard + Loon openUrl Notifications + Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.9.3 Studio · Loon Optimized): CSS-only instant 0ms HUD hide/restore (with CSP nonce forwarding, no page leave on in-app WebView) + clarify Pack #1 AI Pro 5TB/2TB 3M 99% + Native Protobuf Rewrite ON by default for Top 3 live packs + Frame-1 Fast Floating HUD + Strict 200-HTML-Only Guard + Loon openUrl Notifications. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.9.2";
+  var VERSION = "g1-aio-v2.9.3";
   var REPORT_URL = "https://one.google.com/g1-sku-report";
   var IS_LOON = typeof $loon !== "undefined";
   var GEMINI_99P_TARGET = "com.google.gemini.2tb.ai.m.3month_ip_99p";
@@ -502,7 +502,7 @@
   function buildHudPackNotice(activePackId) {
     if (activePackId === "iphone-1-pro-99p-slot20") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);color:#A7F3D0;font-size:11px;">' +
-        'Gói #1 (Đang sống · 1-Slot · Native ON): Bấm nút Ultra 20TB trên Google One / Photos / Drive / Gmail (hoặc trang này) để mở Pro 3T 99%.</div>';
+        'Gói #1 (Đang sống · 1-Slot · Native ON): Mượn nút Ultra 20TB để mở Google AI Pro (5TB/2TB) giảm 99% 3T (~7.000đ/T VNĐ), chạy trên Google One / Photos / Drive / Gmail.</div>';
     }
     if (activePackId === "iphone-2-gemini-99p") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
@@ -521,6 +521,16 @@
         'Cảnh báo 26/11: Các gói Ultra .acq đang bị khóa trên iOS (Purchase not completed) — giữ làm dự phòng khi mở lại.</div>';
     }
     return "";
+  }
+
+  function extractStyleNonce(html) {
+    if (typeof html !== "string" || !html) return "";
+    var m = html.match(/<style\b[^>]*\snonce=["']([A-Za-z0-9+\/_=-]{8,128})["']/i);
+    if (!m) {
+      m = html.match(/<script\b[^>]*\snonce=["']([A-Za-z0-9+\/_=-]{8,128})["']/i);
+    }
+    if (!m || !/^[A-Za-z0-9+\/_=-]{8,128}$/.test(m[1])) return "";
+    return m[1];
   }
 
   function injectOverlayPanel(html, cfg, mappings, hits, statusNote) {
@@ -558,7 +568,14 @@
     var mappingBlock = rows.length
       ? '<div style="margin-top:8px;">' + rows.join("") + '</div>'
       : '<div style="margin-top:8px;color:#A7B0C5;font-size:11px;">Trang này chưa đổi SKU — chạm 1 gói ở trên để áp dụng và tự tải lại.</div>';
+    var styleNonce = extractStyleNonce(html);
+    var nonceAttr = styleNonce ? ' nonce="' + styleNonce + '"' : "";
     var panel =
+      '<style data-g1-hud-css="1"' + nonceAttr + '>' +
+      '#g1-hud-hide:checked~details[data-g1-hud="1"]{display:none!important}' +
+      '#g1-hud-hide:checked~label[data-g1-hud-fab="1"]{display:inline-flex!important}' +
+      '</style>' +
+      '<input id="g1-hud-hide" type="checkbox" style="position:fixed;opacity:0;pointer-events:none;width:0;height:0;margin:0;padding:0;border:0">' +
       '<details data-g1-hud="1" style="position:fixed;top:8px;left:10px;right:10px;z-index:2147483647;' +
       'background:#151822;border:1px solid rgba(255,255,255,0.14);border-radius:14px;' +
       'box-shadow:0 4px 14px rgba(0,0,0,0.34);' +
@@ -574,8 +591,9 @@
       packNotice + mappingBlock +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
       '<a href="https://one.google.com/g1-sku-report" style="display:inline-flex;align-items:center;background:#2563EB;color:#FFFFFF;text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Mở Studio &amp; Báo cáo</a>' +
-      '<a href="https://one.google.com/g1-sku-report?action=toggle-overlay&amp;back=' + backParam + '" style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);text-decoration:none;padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</a>' +
-      '</div></div></details>';
+      '<label for="g1-hud-hide" style="display:inline-flex;align-items:center;cursor:pointer;background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.12);padding:6px 12px;border-radius:99px;font-weight:600;font-size:12px;">Ẩn thanh nổi</label>' +
+      '</div></div></details>' +
+      '<label for="g1-hud-hide" data-g1-hud-fab="1" style="display:none;position:fixed;bottom:14px;right:12px;z-index:2147483647;align-items:center;justify-content:center;padding:5px 10px;border-radius:99px;background:rgba(21,24,34,0.88);color:#A7F3D0;border:1px solid rgba(52,211,153,0.38);box-shadow:0 3px 10px rgba(0,0,0,0.32);font-family:-apple-system,BlinkMacSystemFont,&quot;SF Pro Text&quot;,sans-serif;font-size:11px;font-weight:700;cursor:pointer;">G1</label>';
     var headEnd = html.indexOf("</head>");
     if (headEnd === -1) headEnd = html.indexOf("</HEAD>");
     var bodyPos = html.indexOf("<body", headEnd !== -1 ? headEnd : 0);

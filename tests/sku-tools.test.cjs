@@ -808,7 +808,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.9.2");
+  assert.equal(scan.version, "g1-aio-v2.9.3");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1094,7 +1094,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.9.2"));
+  assert(studioHtml.includes("aio-v2.9.3"));
   assert(studioHtml.includes("Kho SKU Cộng Đồng (33 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
@@ -1115,7 +1115,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.9.2");
+  assert.equal(jsonOut.reportVersion, "aio-v2.9.3");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1806,6 +1806,36 @@ test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR leg
     assert(!/<(?:script|img|iframe)\b/i.test(hudHtml));
     assert.equal(hudHtml.match(/\p{Extended_Pictographic}/gu), null, "HUD HTML must have zero Unicode emojis for " + packId);
   }
+
+  // 4. v2.9.3 CSS-only instant 0ms hide/restore with CSP nonce forwarding and zero action=toggle-overlay navigation
+  const nonceRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi",
+    body: '<!doctype html><html><head><style nonce="AbC123_XyZ99=">.x{color:red}</style></head><body><div>AI</div></body></html>',
+    responseStatus: 200,
+    responseHeaders: { "content-type": "text/html; charset=utf-8" },
+    storage
+  }).payload.body;
+  assert(nonceRes.includes('<style data-g1-hud-css="1" nonce="AbC123_XyZ99=">'));
+  assert(nonceRes.includes('id="g1-hud-hide"'));
+  assert(nonceRes.includes('<label for="g1-hud-hide"'));
+  assert(nonceRes.includes('data-g1-hud-fab="1"'));
+  assert(!nonceRes.includes("action=toggle-overlay"));
+  assert(!nonceRes.includes("backdrop-filter"));
+  assert(!nonceRes.includes("linear-gradient"));
+  assert(!nonceRes.includes("radial-gradient"));
+  assert(!/<(?:script|img|iframe)\b/i.test(nonceRes));
+  assert.equal(nonceRes.match(/\p{Extended_Pictographic}/gu), null);
+
+  // Invalid characters in nonce MUST NOT be reflected into <style data-g1-hud-css="1">
+  const badNonceRes = run("g1-all-in-one-v1.js", {
+    url: "https://one.google.com/ai?hl=vi",
+    body: '<!doctype html><html><head><style nonce="bad\\&quot;nonce">.x{color:red}</style></head><body><div>AI</div></body></html>',
+    responseStatus: 200,
+    responseHeaders: { "content-type": "text/html; charset=utf-8" },
+    storage
+  }).payload.body;
+  assert(badNonceRes.includes('<style data-g1-hud-css="1">'));
+  assert(!badNonceRes.includes('<style data-g1-hud-css="1" nonce='));
 });
 
 test("ALL IN ONE_V1 v2.9 Loon optimizations: openUrl notifications, runtime detection, 3xx/204/304 fast-skip & /u/0 route normalization", () => {
@@ -1853,7 +1883,7 @@ test("ALL IN ONE_V1 v2.9 Loon optimizations: openUrl notifications, runtime dete
 
   // 2. Loon runtime detection in Studio HTML and JSON report
   const loonStudio = run("g1-sku-report-v1.js", { url: REPORT, storage: loonStorage, loon: LOON_UA }).payload.response.body;
-  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9.2"));
+  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9.3"));
   assert(loonStudio.includes("Checklist tối ưu cho Loon (iOS)"));
   assert(loonStudio.includes("Loon 3.2.5"));
   const loonJson = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage: loonStorage, loon: LOON_UA }).payload.response.body);

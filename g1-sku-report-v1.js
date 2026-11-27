@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9.2 · Loon Optimized). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9.3 · Loon Optimized). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.9.2";
+  var VERSION = "aio-v2.9.3";
   var IS_LOON = typeof $loon !== "undefined";
   var RUNTIME_ID = IS_LOON ? "loon" :
     (typeof $environment === "object" && $environment && $environment["surge-version"] ? "surge" : "proxy");
@@ -41,7 +41,7 @@
       cls: "st-ok",
       title: "Pro 3T 99% (1-Slot 20TB)",
       app: "App Google One (Native) / Photos / Drive / Gmail / Google App → nút 20TB",
-      guide: "Chỉ đổi duy nhất nút 20TB (g1.ios.20tb.m.v2 → com.google.gemini.2tb.ai.m.3month_ip_99p), tránh xung đột nhiều nút gây Purchase not completed. Đã tự bật Native Rewrite (chạy thẳng trên App Google One / Photos / Drive / Gmail không cần Google App). Giá 26/11: IN ₹9-10/T, ID Rp 3.000/T, TR ₺5,39-8,69/T, US $0,29/T, SG S$0,48/T; kèm 3 link mời AI Pro 4T trên one.google.com.",
+      guide: "Mượn duy nhất nút Ultra 20TB (g1.ios.20tb.m.v2 → com.google.gemini.2tb.ai.m.3month_ip_99p) để mở Google AI Pro (5TB/2TB) giảm 99% trong 3 tháng (không phải Ultra 20TB), tránh xung đột nhiều nút gây Purchase not completed. Đã tự bật Native Rewrite (chạy thẳng trên App Google One / Photos / Drive / Gmail không cần Google App). Giá 26/11: VN ~7.000đ/T (sau 3T 489.000đ/T), IN ₹9-10/T, ID Rp 3.000/T, TR ₺5,39-8,69/T, US $0,29/T, SG S$0,48/T; kèm 3 link mời AI Pro 4T trên one.google.com.",
       cfg: {
         profile: "pro-99p-slot20",
         target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
@@ -260,13 +260,14 @@
       "<title>ALL IN ONE_V1 · Đang áp dụng</title>" +
       "<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;background:#0C0E14;color:#F3F5F9;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"SF Pro Text\",sans-serif}" +
       ".box{max-width:460px;width:100%;background:#151822;border:1px solid rgba(255,255,255,0.14);border-radius:16px;padding:18px}" +
-      "h1{margin:0 0 8px;font-size:16px}p{margin:0 0 14px;color:#A7B0C5;font-size:13px}" +
+      "h1{margin:0 0 8px;font-size:16px}p{margin:0 0 14px;color:#A7B0C5;font-size:13px}.hint{margin:12px 0 0;font-size:12px;color:#A7B0C5}" +
       ".acts{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:99px;font-weight:600;font-size:13px;text-decoration:none}" +
       ".pri{background:#2563EB;color:#fff}.sec{background:rgba(255,255,255,0.08);color:#F3F5F9;border:1px solid rgba(255,255,255,0.14)}</style>" +
       "<div class=box><h1>ALL IN ONE_V1 · " + VERSION + "</h1>" +
       "<p>" + escape(actionMessage || "Đã cập nhật cấu hình.") + (redirectAuto ? " Đang tự quay lại trang Google One..." : "") + "</p>" +
       "<div class=acts><a class=\"btn pri\" href=\"" + safeRedirect + "\">Quay lại trang Google One ngay</a>" +
-      "<a class=\"btn sec\" href=\"" + ROOT + "\">Mở Studio &amp; Báo cáo</a></div></div>";
+      "<a class=\"btn sec\" href=\"" + ROOT + "\">Mở Studio &amp; Báo cáo</a></div>" +
+      "<p class=hint>Nếu WebView trong app Google không tự quay lại, hãy đóng màn hình này và mở lại mục Nâng cấp — cấu hình mới đã được lưu.</p></div>";
     $done({
       response: {
         status: 200,
