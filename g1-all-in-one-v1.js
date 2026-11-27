@@ -1,8 +1,8 @@
-/* Google One ALL IN ONE_V1 (v2.9.1 Studio · Loon Optimized): Sync crhywun v7.13.0 Exact Monthly Pro + 2026-11-26/27 Live Top 5 Switcher (Pro 3T 99% 1-Slot 20TB / Exact Monthly Pro, TR Ultra 20TB+30TB Legacy), 10 Profiles, Frame-1 Fast Floating HUD, 3xx/Static Fast-Skip, Strict 200-HTML-Only Guard, Loon openUrl Notifications, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.9.2 Studio · Loon Optimized): Native Protobuf Rewrite ON by default for all Top 3 live packs (#1 1-Slot 20TB, #2 Exact Monthly Pro v7.13, #3 TR Ultra 20TB+30TB) — runs directly on App Google One / Gemini / Photos / Drive / Gmail without Google App + Frame-1 Fast Floating HUD + Strict 200-HTML-Only Guard + Loon openUrl Notifications + Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.9.1";
+  var VERSION = "g1-aio-v2.9.2";
   var REPORT_URL = "https://one.google.com/g1-sku-report";
   var IS_LOON = typeof $loon !== "undefined";
   var GEMINI_99P_TARGET = "com.google.gemini.2tb.ai.m.3month_ip_99p";
@@ -12,9 +12,9 @@
     "com.google.gemini.2tb.ai.m": true
   };
   var HUD_PACKS = [
-    { id: "iphone-1-pro-99p-slot20", label: "#1 Pro 3T 99% · 1-Slot 20TB", tier: "live", app: "Google App", profile: "pro-99p-slot20", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "scan" },
-    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Pro tháng v7.13", tier: "live", app: "Google App / App Gemini", profile: "pro-99p-monthly", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
-    { id: "iphone-3-tr-ultra-legacy", label: "#3 TR Ultra 20TB+30TB", tier: "live", app: "Google App (TR ID)", profile: "tr-ultra-legacy", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "extended", nativeMode: "scan" },
+    { id: "iphone-1-pro-99p-slot20", label: "#1 Pro 3T 99% · 1-Slot 20TB", tier: "live", app: "Google One / Photos / Drive / Gmail (Native+Web)", profile: "pro-99p-slot20", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
+    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Pro tháng v7.13", tier: "live", app: "App Gemini / Google One / Photos / Drive (Native+Web)", profile: "pro-99p-monthly", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
+    { id: "iphone-3-tr-ultra-legacy", label: "#3 TR Ultra 20TB+30TB", tier: "live", app: "Google One / Photos / Drive (TR ID · Native+Web)", profile: "tr-ultra-legacy", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "extended", nativeMode: "rewrite" },
     { id: "iphone-4-pro-12m-90p", label: "#4 Pro 12T 90p · Tắt promo", tier: "warn", app: "Google App", profile: "promo-90p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
     { id: "iphone-5-ultra-backup", label: "#5 Ultra Free/75p · Dự phòng", tier: "backup", app: "Google App", profile: "ultra-75p", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" }
   ];
@@ -502,15 +502,15 @@
   function buildHudPackNotice(activePackId) {
     if (activePackId === "iphone-1-pro-99p-slot20") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.28);color:#A7F3D0;font-size:11px;">' +
-        'Gói #1 (Đang sống · 1-Slot): Bấm nút Ultra 20TB ngay trên trang này để mở Pro 3T 99% (tránh xung đột nhiều nút).</div>';
+        'Gói #1 (Đang sống · 1-Slot · Native ON): Bấm nút Ultra 20TB trên Google One / Photos / Drive / Gmail (hoặc trang này) để mở Pro 3T 99%.</div>';
     }
     if (activePackId === "iphone-2-gemini-99p") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
-        'Gói #2 (Đang sống · v7.13): Chỉ đổi 3 mã Pro/AI tháng (bỏ gói năm &amp; 20/30TB tránh xung đột); chạy Google App hoặc App Gemini (iOS) → Upgrade.</div>';
+        'Gói #2 (Đang sống · v7.13 · Native ON): Chỉ đổi 3 mã Pro/AI tháng; chạy App Gemini (iOS) / Google One / Photos / Drive / Gmail → Upgrade.</div>';
     }
     if (activePackId === "iphone-3-tr-ultra-legacy") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
-        'Gói #3 (Đang sống · TR Apple ID): Bấm nút 20TB (1.989,99 TRY) hoặc 30TB (2.949,99 TRY) để kiểm tra giá cũ trên StoreKit.</div>';
+        'Gói #3 (Đang sống · TR ID · Native ON): Bấm nút 20TB (1.989,99 TRY) hoặc 30TB (2.949,99 TRY) trên Google One / Photos / Drive để kiểm tra giá cũ.</div>';
     }
     if (activePackId === "iphone-4-pro-12m-90p") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);color:#FDE68A;font-size:11px;">' +

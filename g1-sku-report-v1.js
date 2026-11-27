@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9.1 · Loon Optimized). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9.2 · Loon Optimized). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.9.1";
+  var VERSION = "aio-v2.9.2";
   var IS_LOON = typeof $loon !== "undefined";
   var RUNTIME_ID = IS_LOON ? "loon" :
     (typeof $environment === "object" && $environment && $environment["surge-version"] ? "surge" : "proxy");
@@ -40,14 +40,14 @@
       rank: "HẠNG 1 · ĐANG SỐNG · 1-SLOT",
       cls: "st-ok",
       title: "Pro 3T 99% (1-Slot 20TB)",
-      app: "Google App (chữ G) → bấm nút Ultra 20TB",
-      guide: "Chỉ đổi duy nhất nút 20TB (g1.ios.20tb.m.v2 → com.google.gemini.2tb.ai.m.3month_ip_99p), tránh xung đột nhiều nút gây Purchase not completed. Giá 26/11: IN ₹9-10/T, ID Rp 3.000/T, TR ₺5,39-8,69/T, US $0,29/T, SG S$0,48/T; kèm 3 link mời AI Pro 4T trên one.google.com. Có thanh nổi HUD.",
+      app: "App Google One (Native) / Photos / Drive / Gmail / Google App → nút 20TB",
+      guide: "Chỉ đổi duy nhất nút 20TB (g1.ios.20tb.m.v2 → com.google.gemini.2tb.ai.m.3month_ip_99p), tránh xung đột nhiều nút gây Purchase not completed. Đã tự bật Native Rewrite (chạy thẳng trên App Google One / Photos / Drive / Gmail không cần Google App). Giá 26/11: IN ₹9-10/T, ID Rp 3.000/T, TR ₺5,39-8,69/T, US $0,29/T, SG S$0,48/T; kèm 3 link mời AI Pro 4T trên one.google.com.",
       cfg: {
         profile: "pro-99p-slot20",
         target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
         mode: "auto",
         rewriteScope: "extended",
-        nativeMode: "scan",
+        nativeMode: "rewrite",
         enable2tb: false,
         enable20tb: true,
         enable30tb: false,
@@ -62,7 +62,7 @@
       rank: "HẠNG 2 · ĐANG SỐNG · v7.13",
       cls: "st-ok",
       title: "Pro 3T 99% (Pro tháng · v7.13)",
-      app: "Google App (nút Pro tháng) hoặc App Gemini (iOS) → Upgrade",
+      app: "App Gemini (iOS) / Google One (Native) / Photos / Drive / Gmail",
       guide: "Chuẩn crhywun v7.13.0: chỉ map chính xác 3 mã Pro/AI tháng (g1.ios.2tb.ai.m, g1.ios.ai.2tb.m.ip_3mo_75p.acq, com.google.gemini.2tb.ai.m → com.google.gemini.2tb.ai.m.3month_ip_99p), giữ nguyên gói năm & 20TB/30TB tránh trùng ID StoreKit. Tự bật Mở rộng + Native Rewrite + banner Loon chạm mở thẳng Studio.",
       cfg: {
         profile: "pro-99p-monthly",
@@ -84,14 +84,14 @@
       rank: "HẠNG 3 · ĐANG SỐNG · TR ID",
       cls: "st-info",
       title: "TR Ultra 20TB + 30TB giá cũ",
-      app: "Google App (chữ G) · Apple ID Thổ Nhĩ Kỳ (TR)",
-      guide: "Đổi nút 20TB → g1.ios.20tb.m (1.989,99 TRY/tháng, mới v7.12.0) và nút 30TB → g1.ios.30tb.m (2.949,99 TRY/tháng); giữ nguyên nút 2TB. Dùng Apple ID vùng TR để kiểm tra giá cũ trên StoreKit. Có thanh nổi HUD.",
+      app: "App Google One (Native) / Photos / Drive / Google App · TR Apple ID",
+      guide: "Đổi nút 20TB → g1.ios.20tb.m (1.989,99 TRY/tháng, mới v7.12.0) và nút 30TB → g1.ios.30tb.m (2.949,99 TRY/tháng); giữ nguyên nút 2TB. Đã tự bật Native Rewrite cho App Google One (TR Apple ID) lẫn Photos / Drive. Có thanh nổi HUD.",
       cfg: {
         profile: "tr-ultra-legacy",
         target2tb: "g1.2tb.ai.12months_ip_90p",
         mode: "auto",
         rewriteScope: "extended",
-        nativeMode: "scan",
+        nativeMode: "rewrite",
         enable2tb: false,
         enable20tb: true,
         enable30tb: true,

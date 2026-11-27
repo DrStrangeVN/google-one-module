@@ -808,7 +808,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.9.1");
+  assert.equal(scan.version, "g1-aio-v2.9.2");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1094,7 +1094,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.9.1"));
+  assert(studioHtml.includes("aio-v2.9.2"));
   assert(studioHtml.includes("Kho SKU Cộng Đồng (33 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
@@ -1115,7 +1115,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.9.1");
+  assert.equal(jsonOut.reportVersion, "aio-v2.9.2");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1553,6 +1553,7 @@ test("ALL IN ONE_V1 v2.8.2 guards HUD to 200 text/html, injects Frame-1 after <b
 });
 
 test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR legacy 20TB+30TB & 33-SKU Vault status", () => {
+  const NATIVE_URL = "https://subscriptionsmobile-pa.googleapis.com/$rpc/google.internal.subscriptions.mobile.v1.SubscriptionsApiMobileService/GetDynamicStorefrontInfo?alt=proto";
   const GEMINI_SRC = "com.google.gemini.2tb.ai.m";
   const GEMINI_99P = "com.google.gemini.2tb.ai.m.3month_ip_99p";
   const AI_2TB = "g1.ios.ai.2tb.m.ip_1mo_90p.acq";
@@ -1568,9 +1569,31 @@ test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR leg
   const cfg1 = get(storage, CONFIG_KEY);
   assert.equal(cfg1.profile, "pro-99p-slot20");
   assert.equal(cfg1.rewriteScope, "extended");
+  assert.equal(cfg1.nativeMode, "rewrite");
   assert.equal(cfg1.enable20tb, true);
   assert.equal(cfg1.enable2tb, false);
   assert.equal(cfg1.enable30tb, false);
+
+  // Immediately works on Native GetDynamicStorefrontInfo without opening Advanced Settings
+  const slotNativeMsg = Buffer.concat([
+    makeProtoField(1, 2, Buffer.from(TWENTY, "ascii")),
+    makeProtoField(2, 2, Buffer.from(THIRTY, "ascii"))
+  ]);
+  const slotNativeOut = run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: new Uint8Array(makeGrpcFrame(0, slotNativeMsg)),
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage
+  });
+  assert(slotNativeOut.binaryBody instanceof Uint8Array);
+  const slotNativeVerify = new Map();
+  run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: slotNativeOut.binaryBody,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage: slotNativeVerify
+  });
+  assert.deepEqual(get(slotNativeVerify, SCAN_KEY).skus.map(s => s.id), [GEMINI_99P, THIRTY]);
 
   const p1Res = run("g1-all-in-one-v1.js", {
     url: "https://one.google.com/u/0/plans?hl=vi",
@@ -1579,6 +1602,7 @@ test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR leg
   });
   assert.deepEqual(JSON.parse(p1Res.payload.body), [SOURCE, AI_2TB, GEMINI_SRC, GEMINI_99P, THIRTY]);
   assert.equal(get(storage, TEST_KEY).hitCount, 1);
+  assert.equal(get(storage, TEST_KEY).recentRewrites.length, 2);
   assert.equal(get(storage, TEST_KEY).target, GEMINI_99P);
 
   // Edge case: even if enable2tb & enable30tb are turned ON under pro-99p-slot20, ONLY 20TB rewrites; turning enable20tb OFF disables it
@@ -1629,6 +1653,30 @@ test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR leg
   const cfg3 = get(storage, CONFIG_KEY);
   assert.equal(cfg3.profile, "tr-ultra-legacy");
   assert.equal(cfg3.rewriteScope, "extended");
+  assert.equal(cfg3.nativeMode, "rewrite");
+
+  // Pack #3 immediately works on Native GetDynamicStorefrontInfo for TR legacy 20TB + 30TB (leaving SOURCE untouched)
+  const trNativeMsg = Buffer.concat([
+    makeProtoField(1, 2, Buffer.from(SOURCE, "ascii")),
+    makeProtoField(2, 2, Buffer.from(TWENTY, "ascii")),
+    makeProtoField(3, 2, Buffer.from(THIRTY, "ascii"))
+  ]);
+  const trNativeOut = run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: new Uint8Array(makeGrpcFrame(0, trNativeMsg)),
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage
+  });
+  assert(trNativeOut.binaryBody instanceof Uint8Array);
+  const trNativeVerify = new Map();
+  run("g1-all-in-one-v1.js", {
+    url: NATIVE_URL,
+    body: trNativeOut.binaryBody,
+    responseHeaders: { "content-type": "application/grpc-web+proto" },
+    storage: trNativeVerify
+  });
+  assert.deepEqual(get(trNativeVerify, SCAN_KEY).skus.map(s => s.id).sort(), [SOURCE, TR_20TB, TR_30TB].sort());
+
   const p3Res = run("g1-all-in-one-v1.js", {
     url: "https://one.google.com/u/0/plans",
     body: JSON.stringify([SOURCE, TWENTY, THIRTY]),
@@ -1805,7 +1853,7 @@ test("ALL IN ONE_V1 v2.9 Loon optimizations: openUrl notifications, runtime dete
 
   // 2. Loon runtime detection in Studio HTML and JSON report
   const loonStudio = run("g1-sku-report-v1.js", { url: REPORT, storage: loonStorage, loon: LOON_UA }).payload.response.body;
-  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9.1"));
+  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9.2"));
   assert(loonStudio.includes("Checklist tối ưu cho Loon (iOS)"));
   assert(loonStudio.includes("Loon 3.2.5"));
   const loonJson = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage: loonStorage, loon: LOON_UA }).payload.response.body);

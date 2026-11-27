@@ -33,7 +33,7 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 
 *(Tách riêng để test song song mà không ảnh hưởng bản chính; chỉ bật 1 module/plugin tại một thời điểm.)*
 
-* **Link cài đặt `ALL IN ONE_V1` (v2.9.1 — Tối ưu ưu tiên cho Loon iOS):**
+* **Link cài đặt `ALL IN ONE_V1` (v2.9.2 — Tối ưu ưu tiên cho Loon iOS):**
   * **Loon (`.plugin` — Khuyên dùng, chuẩn Loon 3.x):**
     ```text
     https://raw.githubusercontent.com/DrStrangeVN/google-one-module/main/loon/g1-all-in-one-v1.plugin
@@ -50,17 +50,17 @@ Bộ module/plugin tiếng Việt cho **Shadowrocket** và **Loon** (iOS) dùng 
 * **Checklist chuẩn cho Loon (iOS):**
   1. Bật đủ 3 công tắc tổng trong Loon: **MITM**, **Rewrite**, và **Script**; cài + bật Tin cậy chứng chỉ gốc trong Cài đặt iOS.
   2. Chỉ bật duy nhất plugin **`G1 ALL IN ONE_V1`**, tắt các plugin Google One cũ (`G1 All-in-One`, `G1 ACQ`).
-  3. Plugin đã gắn sẵn rule 2 vế `AND,((DOMAIN-SUFFIX,google.com),(PROTOCOL,UDP)),REJECT` để chặn Cronet gộp kết nối QUIC (không dùng `max-size=` gây lỗi phân tích Loon). Sau khi bấm **Cập nhật plugin** trong Loon, vuốt đóng hẳn **Google App / App Gemini** rồi mở lại để xả kết nối QUIC cũ.
+  3. Plugin đã gắn sẵn rule 2 vế `AND,((DOMAIN-SUFFIX,google.com),(PROTOCOL,UDP)),REJECT` để chặn Cronet gộp kết nối QUIC (không dùng `max-size=` gây lỗi phân tích Loon). Sau khi bấm **Cập nhật plugin** trong Loon, vuốt đóng hẳn app đang dùng (**Google One / Gemini / Photos / Drive / Gmail**) rồi mở lại để xả kết nối QUIC cũ.
   4. Bấm nút mở trang ngay trong chi tiết plugin (`#!openUrl`) hoặc **chạm trực tiếp banner Thông báo iOS của Loon** (`openUrl`) để nhảy thẳng vào Studio (`https://one.google.com/g1-sku-report`).
-* **Nâng cấp v2.9.1 Studio (Đồng bộ thực tế iOS ngày `2026-11-26 / 27` + `crhywun/g1-acq` v7.13.0 & `Dgkncn/g1-acq-plus` v9.6.0):**
-  * **Top 5 Gói 1 Chạm cho iPhone (Xếp lại theo trạng thái sống trên cả Studio & Thanh nổi HUD):**
-    1. **`#1 Pro 3T 99% (1-Slot 20TB)` — Đang sống:** Chỉ đổi duy nhất nút 20TB (`g1.ios.20tb.m.v2` → `com.google.gemini.2tb.ai.m.3month_ip_99p`), tránh xung đột nhiều nút gây `Purchase not completed`. Chạy trực tiếp trên **Google App** (bấm nút 20TB); giá xác nhận 26/11: IN ₹9–10/T, ID Rp 3.000/T, TR ₺5,39–8,69/T, US $0,29/T, SG S$0,48/T + tặng thêm **3 link mời AI Pro 4 tháng** trên `one.google.com`.
-    2. **`#2 Pro 3T 99% (Pro tháng · v7.13)` — Đang sống (chuẩn `crhywun v7.13.0`):** Chỉ map chính xác 3 mã Pro/AI tháng (`g1.ios.2tb.ai.m`, `g1.ios.ai.2tb.m.ip_3mo_75p.acq`, `com.google.gemini.2tb.ai.m` → `com.google.gemini.2tb.ai.m.3month_ip_99p`), bỏ gói năm & 20TB/30TB tránh trùng ID trên StoreKit. Chạy được trên cả **Google App (nút Pro tháng)** lẫn **App Gemini (iOS) → Upgrade** (bật sẵn Native Rewrite + thông báo Loon chạm mở thẳng Studio).
-    3. **`#3 TR Ultra 20TB + 30TB giá cũ` — Đang sống (TR Apple ID):** Đổi `g1.ios.20tb.m.v2` → `g1.ios.20tb.m` (`1.989,99 TRY/tháng`, mới v7.12.0) và `g1.ios.30tb.ai.pro.m` → `g1.ios.30tb.m` (`2.949,99 TRY/tháng`), giữ nguyên 2TB.
+* **Nâng cấp v2.9.2 Studio (Đồng bộ thực tế iOS ngày `2026-11-26 / 27` + `crhywun/g1-acq` v7.13.0 & `Dgkncn/g1-acq-plus` v9.6.0):**
+  * **Top 5 Gói 1 Chạm cho iPhone (Cả 3 gói sống `#1`, `#2`, `#3` đều bật sẵn `Native Rewrite` mặc định):**
+    1. **`#1 Pro 3T 99% (1-Slot 20TB)` — Đang sống:** Chỉ đổi duy nhất nút 20TB (`g1.ios.20tb.m.v2` → `com.google.gemini.2tb.ai.m.3month_ip_99p`), tránh xung đột nhiều nút gây `Purchase not completed`. Đã bật sẵn **Native Protobuf Rewrite**, chạy trực tiếp trên **App Google One / Photos / Drive / Gmail** (hoặc Google App, bấm nút 20TB); giá xác nhận 26/11: IN ₹9–10/T, ID Rp 3.000/T, TR ₺5,39–8,69/T, US $0,29/T, SG S$0,48/T + tặng thêm **3 link mời AI Pro 4 tháng** trên `one.google.com`.
+    2. **`#2 Pro 3T 99% (Pro tháng · v7.13)` — Đang sống (chuẩn `crhywun v7.13.0`):** Chỉ map chính xác 3 mã Pro/AI tháng (`g1.ios.2tb.ai.m`, `g1.ios.ai.2tb.m.ip_3mo_75p.acq`, `com.google.gemini.2tb.ai.m` → `com.google.gemini.2tb.ai.m.3month_ip_99p`), bỏ gói năm & 20TB/30TB tránh trùng ID trên StoreKit. Đã bật sẵn **Native Rewrite**, chạy mượt trên **App Gemini (iOS) / App Google One / Photos / Drive / Gmail** → Upgrade.
+    3. **`#3 TR Ultra 20TB + 30TB giá cũ` — Đang sống (TR Apple ID):** Đổi `g1.ios.20tb.m.v2` → `g1.ios.20tb.m` (`1.989,99 TRY/tháng`, mới v7.12.0) và `g1.ios.30tb.ai.pro.m` → `g1.ios.30tb.m` (`2.949,99 TRY/tháng`), giữ nguyên 2TB. Đã bật sẵn **Native Rewrite** cho App Google One (TR Apple ID) lẫn Photos / Drive.
     4. **`#4 Pro 12T 90p` — Cảnh báo `Tắt promo`:** StoreKit vẫn hiện bảng thanh toán nhưng Google đang tạm tắt giảm 90% (thường báo giá gốc `$19,99/tháng`). Luôn kiểm tra kỹ giá StoreKit trước khi bấm mua.
     5. **`#5 Ultra 1M Free / 75p Dự phòng` — Cảnh báo `Đã khóa 26/11`:** Các mã Ultra `.acq` (1M Free, 75p, 90p) hiện báo `Purchase not completed` trên iOS; giữ làm gói dự phòng (2TB → Ultra 1M Free, 20TB/30TB → Ultra 3T 75p) khi Google mở lại.
   * **Thanh nổi HUD Frame-1 & Tối ưu hiệu năng cho Loon:** Chèn ngay sau `<body>` chỉ trên response **`HTTP 200` + `text/html` + không có `Location`**, tự bỏ qua tức thì file tĩnh (`CSS/image/font`) và gói redirect/cache (`3xx/204/304`) để không ghi thừa `$persistentStore`, chuẩn hóa đường dẫn `/u/0/*` trong Chẩn Đoán, và dùng **`meta-refresh` (`status 200`)** quay lại URL sạch không phát `302` giả.
-  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.9.1`):** 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), nhận diện tự động môi trường chạy (`Loon` / `Surge` / `Shadowrocket`), tích hợp sẵn **Checklist tối ưu cho Loon (iOS)**, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục JSON.
+  * **Giao diện Minimal Specular Liquid Glass (`aio-v2.9.2`):** 5 tab tức thì (`Studio`, `Kho SKU`, `Đã Quét`, `Chẩn Đoán`, `Hệ Thống`), nhận diện tự động môi trường chạy (`Loon` / `Surge` / `Shadowrocket`), tích hợp sẵn **Checklist tối ưu cho Loon (iOS)**, hỗ trợ `Auto / Dark / Light` và sao lưu/khôi phục JSON.
   * **10 Profile chuyển 1 chạm:**
     1. `pro-99p-slot20` (**Đang sống**): 1-Slot `g1.ios.20tb.m.v2` → `com.google.gemini.2tb.ai.m.3month_ip_99p` (chống xung đột nhiều nút).
     2. `pro-99p-monthly` (**Đang sống · v7.13**): Chỉ khớp chính xác 3 mã Pro/AI tháng (`g1.ios.2tb.ai.m`, `g1.ios.ai.2tb.m.ip_3mo_75p.acq`, `com.google.gemini.2tb.ai.m`) → `com.google.gemini.2tb.ai.m.3month_ip_99p` (tránh trùng nút gói năm).
