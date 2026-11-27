@@ -1,5 +1,5 @@
 #!name=G1 ALL IN ONE_V1
-#!desc=v2.9 Studio Surge (max-size=-1): Cập nhật 26/11 — Top 5 gói sống (Pro 3T 99% 1-Slot 20TB / Pro & Gemini, TR Ultra 20TB+30TB giá cũ) + 9 Profile + Kho 33 SKU + Thanh nổi Frame-1 + Native Protobuf
+#!desc=v2.9.1 Studio Surge (max-size=-1): Cập nhật 27/11 (v7.13.0) — Top 5 gói sống (Pro 3T 99% 1-Slot 20TB / Pro tháng, TR Ultra 20TB+30TB giá cũ) + 10 Profile + Kho 33 SKU + Thanh nổi Frame-1 + Native Protobuf
 
 [Header Rewrite]
 http-request ^https:\/\/one\.google\.com\/ header-del Accept-Encoding

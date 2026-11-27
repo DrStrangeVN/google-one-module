@@ -1,14 +1,19 @@
-/* Google One ALL IN ONE_V1 (v2.9 Studio · Loon Optimized): 2026-11-26 Live Top 5 Switcher (Pro 3T 99% 1-Slot 20TB / Pro & Gemini, TR Ultra 20TB+30TB Legacy), 9 Profiles, Frame-1 Fast Floating HUD, 3xx/Static Fast-Skip, Strict 200-HTML-Only Guard, Loon openUrl Notifications, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
+/* Google One ALL IN ONE_V1 (v2.9.1 Studio · Loon Optimized): Sync crhywun v7.13.0 Exact Monthly Pro + 2026-11-26/27 Live Top 5 Switcher (Pro 3T 99% 1-Slot 20TB / Exact Monthly Pro, TR Ultra 20TB+30TB Legacy), 10 Profiles, Frame-1 Fast Floating HUD, 3xx/Static Fast-Skip, Strict 200-HTML-Only Guard, Loon openUrl Notifications, g1.* + com.google.gemini.* + /u/0/* extended scope, Longest-Prefix Custom Rules, Web + Native Protobuf, Strict Catalog & Anti-Wipe History. */
 "use strict";
 
 (function () {
-  var VERSION = "g1-aio-v2.9";
+  var VERSION = "g1-aio-v2.9.1";
   var REPORT_URL = "https://one.google.com/g1-sku-report";
   var IS_LOON = typeof $loon !== "undefined";
   var GEMINI_99P_TARGET = "com.google.gemini.2tb.ai.m.3month_ip_99p";
+  var PRO_MONTHLY_SOURCES = {
+    "g1.ios.2tb.ai.m": true,
+    "g1.ios.ai.2tb.m.ip_3mo_75p.acq": true,
+    "com.google.gemini.2tb.ai.m": true
+  };
   var HUD_PACKS = [
     { id: "iphone-1-pro-99p-slot20", label: "#1 Pro 3T 99% · 1-Slot 20TB", tier: "live", app: "Google App", profile: "pro-99p-slot20", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "scan" },
-    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Pro/Gemini", tier: "live", app: "Google App / App Gemini", profile: "promo-90p", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
+    { id: "iphone-2-gemini-99p", label: "#2 Pro 3T 99% · Pro tháng v7.13", tier: "live", app: "Google App / App Gemini", profile: "pro-99p-monthly", target2tb: GEMINI_99P_TARGET, rewriteScope: "extended", nativeMode: "rewrite" },
     { id: "iphone-3-tr-ultra-legacy", label: "#3 TR Ultra 20TB+30TB", tier: "live", app: "Google App (TR ID)", profile: "tr-ultra-legacy", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "extended", nativeMode: "scan" },
     { id: "iphone-4-pro-12m-90p", label: "#4 Pro 12T 90p · Tắt promo", tier: "warn", app: "Google App", profile: "promo-90p", target2tb: "g1.2tb.ai.12months_ip_90p", rewriteScope: "ai", nativeMode: "scan" },
     { id: "iphone-5-ultra-backup", label: "#5 Ultra Free/75p · Dự phòng", tier: "backup", app: "Google App", profile: "ultra-75p", target2tb: "g1.ai.ultra.1month_eft.acq", rewriteScope: "ai", nativeMode: "scan" }
@@ -366,6 +371,13 @@
       return null;
     }
 
+    if (cfg.profile === "pro-99p-monthly") {
+      if (cfg.enable2tb && Object.prototype.hasOwnProperty.call(PRO_MONTHLY_SOURCES, id)) {
+        return { to: GEMINI_99P_TARGET, fallback: false, is2tb: true };
+      }
+      return null;
+    }
+
     if (cfg.profile === "tr-ultra-legacy") {
       if (id === "g1.ios.20tb.m.v2") {
         return cfg.enable20tb ? { to: TR_LEGACY_MAP[id], fallback: false, is2tb: false } : null;
@@ -494,7 +506,7 @@
     }
     if (activePackId === "iphone-2-gemini-99p") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
-        'Gói #2 (Đang sống · v7.12): Bấm nút AI Pro 2TB trên Google App hoặc mở App Gemini (iOS) → Upgrade (không hiện thanh nổi trong App Gemini).</div>';
+        'Gói #2 (Đang sống · v7.13): Chỉ đổi 3 mã Pro/AI tháng (bỏ gói năm &amp; 20/30TB tránh xung đột); chạy Google App hoặc App Gemini (iOS) → Upgrade.</div>';
     }
     if (activePackId === "iphone-3-tr-ultra-legacy") {
       return '<div style="margin-top:6px;padding:6px 9px;border-radius:9px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:#BAE6FD;font-size:11px;">' +
@@ -557,7 +569,7 @@
       '<span>' + escHtml(summaryLabel) + '</span>' +
       '</span><span style="flex:0 0 auto;background:rgba(52,211,153,0.14);color:#34D399;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">Đổi 5 gói</span>' +
       '</summary><div style="margin-top:8px;">' +
-      '<div style="font-size:11px;font-weight:700;color:#93C5FD;margin-bottom:5px;">Đổi nhanh 5 gói iPhone (Cập nhật 26/11 · #1-#3 đang sống)</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#93C5FD;margin-bottom:5px;">Đổi nhanh 5 gói iPhone (Cập nhật 27/11 · #1-#3 đang sống)</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + packButtons + '</div>' +
       packNotice + mappingBlock +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">' +
@@ -651,7 +663,7 @@
       return mappings[id];
     });
     var effectiveTarget = cfg.profile === "ultra-1m-free" || cfg.profile === "hybrid-combo" ? ULTRA_1M_TARGET :
-      cfg.profile === "pro-99p-slot20" ? GEMINI_99P_TARGET :
+      cfg.profile === "pro-99p-slot20" || cfg.profile === "pro-99p-monthly" ? GEMINI_99P_TARGET :
       cfg.profile === "tr-ultra-legacy" ? "tr-legacy-20tb-30tb" :
       cfg.profile === "ultra-free-probe" ? "probe-11-eft" :
       cfg.profile === "custom-only" ? "custom-rules" : cfg.target2tb;
@@ -1230,8 +1242,8 @@
   }
 
   function isValidProfile(profile) {
-    return profile === "pro-99p-slot20" || profile === "tr-ultra-legacy" ||
-      profile === "promo-90p" || profile === "ultra-75p" ||
+    return profile === "pro-99p-slot20" || profile === "pro-99p-monthly" ||
+      profile === "tr-ultra-legacy" || profile === "promo-90p" || profile === "ultra-75p" ||
       profile === "v7.6-eft" || profile === "hybrid-combo" ||
       profile === "ultra-1m-free" || profile === "ultra-free-probe" ||
       profile === "custom-only";

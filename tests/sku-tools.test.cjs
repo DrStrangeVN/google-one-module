@@ -808,7 +808,7 @@ test("ALL IN ONE_V1 native Protobuf scans gRPC frames and rewrites across varint
   assert.deepEqual(scanOnly.payload, {});
   assert.equal(scanOnly.binaryBody, null);
   const scan = get(scanOnly.storage, SCAN_KEY);
-  assert.equal(scan.version, "g1-aio-v2.9");
+  assert.equal(scan.version, "g1-aio-v2.9.1");
   assert.equal(scan.skus[0].id, TWENTY);
   assert.equal(scan.recentResponses[0].path, "native:GetDynamicStorefrontInfo");
 
@@ -1094,7 +1094,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
 
   run("g1-all-in-one-v1.js", { body: JSON.stringify([SOURCE, TWENTY, TWENTY_TARGET]), storage });
   const studioHtml = run("g1-sku-report-v1.js", { url: REPORT, storage }).payload.response.body;
-  assert(studioHtml.includes("aio-v2.9"));
+  assert(studioHtml.includes("aio-v2.9.1"));
   assert(studioHtml.includes("Kho SKU Cộng Đồng (33 mã chuẩn"));
   assert(studioHtml.includes("Top 5 Gói 1 Chạm cho iPhone"));
   assert(studioHtml.includes("g1.2tb.ai.15months_eft"));
@@ -1115,7 +1115,7 @@ test("ALL IN ONE_V1 v2.0 Studio actions (custom rules, theme, overlay toggle, im
   assert(!/<(?:script|img|iframe)\b/i.test(studioHtml));
 
   const jsonOut = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage }).payload.response.body);
-  assert.equal(jsonOut.reportVersion, "aio-v2.9");
+  assert.equal(jsonOut.reportVersion, "aio-v2.9.1");
   assert.equal(jsonOut.test.lastSuccess.hitCount, 2);
   assert.equal(jsonOut.test.recentRewrites.length, 1);
 });
@@ -1319,13 +1319,13 @@ test("ALL IN ONE_V1 v2.6 provides Top 5 1-tap iPhone quick packs and /u/0/* exte
     customRules: [{ from: "g1.ios.100gb.m", to: "g1.2tb.ai.annual", match: "exact", enabled: true }]
   })]]);
 
-  // 1. 1-tap quick pack #2 (Gemini 99% 3M) configures profile, extended scope, native rewrite & preserves theme/customRules
+  // 1. 1-tap quick pack #2 (crhywun v7.13.0 exact monthly Pro) configures pro-99p-monthly, extended scope, native rewrite & preserves theme/customRules
   const pack2Res = run("g1-sku-report-v1.js", {
     url: REPORT + "?action=quick&pack=iphone-2-gemini-99p&tab=studio",
     storage
   });
   const cfg2 = get(storage, CONFIG_KEY);
-  assert.equal(cfg2.profile, "promo-90p");
+  assert.equal(cfg2.profile, "pro-99p-monthly");
   assert.equal(cfg2.target2tb, GEMINI_99P);
   assert.equal(cfg2.rewriteScope, "extended");
   assert.equal(cfg2.nativeMode, "rewrite");
@@ -1593,21 +1593,33 @@ test("ALL IN ONE_V1 v2.9 Top 5 live packs (2026-11-26), single-slot 20TB, TR leg
   });
   assert.deepEqual(p1Off.payload, {});
 
-  // 2. Pack #2: crhywun v7.12.0 style (rewrites 2TB prefixes -> 99p, leaves 20TB/30TB untouched!)
+  // 2. Pack #2: crhywun v7.13.0 exact monthly Pro sources (rewrites ONLY g1.ios.2tb.ai.m, g1.ios.ai.2tb.m.ip_3mo_75p.acq, com.google.gemini.2tb.ai.m; leaves annual, plain 2TB, 20TB & 30TB untouched!)
   run("g1-sku-report-v1.js", {
     url: REPORT + "?action=quick&pack=iphone-2-gemini-99p&tab=studio",
     storage
   });
   const cfg2 = get(storage, CONFIG_KEY);
+  assert.equal(cfg2.profile, "pro-99p-monthly");
   assert.equal(cfg2.enable2tb, true);
   assert.equal(cfg2.enable20tb, false);
   assert.equal(cfg2.enable30tb, false);
   const p2Res = run("g1-all-in-one-v1.js", {
     url: "https://one.google.com/u/0/ai?hl=vi",
-    body: JSON.stringify([SOURCE, AI_2TB, GEMINI_SRC, TWENTY, THIRTY]),
+    body: JSON.stringify(["g1.ios.2tb.ai.m", "g1.ios.ai.2tb.m.ip_3mo_75p.acq", GEMINI_SRC, "g1.ios.2tb.ai.a", "g1.ios.2tb.m", TWENTY, THIRTY]),
     storage
   });
-  assert.deepEqual(JSON.parse(p2Res.payload.body), [GEMINI_99P, GEMINI_99P, GEMINI_99P, TWENTY, THIRTY]);
+  assert.deepEqual(JSON.parse(p2Res.payload.body), [GEMINI_99P, GEMINI_99P, GEMINI_99P, "g1.ios.2tb.ai.a", "g1.ios.2tb.m", TWENTY, THIRTY]);
+  assert.equal(get(storage, TEST_KEY).hitCount, 3);
+  assert.equal(get(storage, TEST_KEY).target, GEMINI_99P);
+
+  // Also check action=profile for pro-99p-monthly renders clean label without undefined
+  const profProMonthly = run("g1-sku-report-v1.js", {
+    url: REPORT + "?action=profile&profile=pro-99p-monthly",
+    storage
+  }).payload.response.body;
+  assert(profProMonthly.includes("Pro 3T 99% · Pro tháng (v7.13)"));
+  assert(!profProMonthly.includes("undefined"));
+  assert.equal(get(storage, CONFIG_KEY).profile, "pro-99p-monthly");
 
   // 3. Pack #3: TR Ultra 20TB + 30TB legacy pricing (leaves 2TB untouched!)
   run("g1-sku-report-v1.js", {
@@ -1793,7 +1805,7 @@ test("ALL IN ONE_V1 v2.9 Loon optimizations: openUrl notifications, runtime dete
 
   // 2. Loon runtime detection in Studio HTML and JSON report
   const loonStudio = run("g1-sku-report-v1.js", { url: REPORT, storage: loonStorage, loon: LOON_UA }).payload.response.body;
-  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9"));
+  assert(loonStudio.includes("Loon đang hoạt động · aio-v2.9.1"));
   assert(loonStudio.includes("Checklist tối ưu cho Loon (iOS)"));
   assert(loonStudio.includes("Loon 3.2.5"));
   const loonJson = JSON.parse(run("g1-sku-report-v1.js", { url: REPORT + "?format=json", storage: loonStorage, loon: LOON_UA }).payload.response.body);

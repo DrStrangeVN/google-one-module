@@ -1,9 +1,9 @@
-/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9 · Loon Optimized). */
+/* Local-only Vietnamese Liquid Glass Studio & Control Panel for ALL IN ONE_V1 (v2.9.1 · Loon Optimized). */
 "use strict";
 
 (function () {
   var ROOT = "https://one.google.com/g1-sku-report";
-  var VERSION = "aio-v2.9";
+  var VERSION = "aio-v2.9.1";
   var IS_LOON = typeof $loon !== "undefined";
   var RUNTIME_ID = IS_LOON ? "loon" :
     (typeof $environment === "object" && $environment && $environment["surge-version"] ? "surge" : "proxy");
@@ -59,13 +59,13 @@
     },
     {
       id: "iphone-2-gemini-99p",
-      rank: "HẠNG 2 · ĐANG SỐNG · v7.12",
+      rank: "HẠNG 2 · ĐANG SỐNG · v7.13",
       cls: "st-ok",
-      title: "Pro 3T 99% (Nút Pro / Gemini)",
-      app: "Google App (nút 2TB) hoặc App Gemini (iOS) → Upgrade",
-      guide: "Chuẩn crhywun v7.12.0: chỉ đổi nhóm nút 2TB (g1.ios.2tb.*, g1.ios.ai.2tb.*, com.google.gemini.2tb.*) → com.google.gemini.2tb.ai.m.3month_ip_99p, tắt 20TB/30TB tránh mã chết. Tự bật Phạm vi Mở rộng + Native Rewrite + Thông báo iOS (trên Loon bấm banner mở thẳng Studio).",
+      title: "Pro 3T 99% (Pro tháng · v7.13)",
+      app: "Google App (nút Pro tháng) hoặc App Gemini (iOS) → Upgrade",
+      guide: "Chuẩn crhywun v7.13.0: chỉ map chính xác 3 mã Pro/AI tháng (g1.ios.2tb.ai.m, g1.ios.ai.2tb.m.ip_3mo_75p.acq, com.google.gemini.2tb.ai.m → com.google.gemini.2tb.ai.m.3month_ip_99p), giữ nguyên gói năm & 20TB/30TB tránh trùng ID StoreKit. Tự bật Mở rộng + Native Rewrite + banner Loon chạm mở thẳng Studio.",
       cfg: {
-        profile: "promo-90p",
+        profile: "pro-99p-monthly",
         target2tb: "com.google.gemini.2tb.ai.m.3month_ip_99p",
         mode: "auto",
         rewriteScope: "extended",
@@ -157,6 +157,7 @@
     { id: "g1.ios.2tb.ai.m", label: "AI Pro 5TB · Tháng (g1.ios.2tb.ai.m)" },
     { id: "g1.ios.2tb.ai.a", label: "AI Pro 5TB · Năm (g1.ios.2tb.ai.a)" },
     { id: "com.google.gemini.2tb.ai.m", label: "Gemini AI Pro 2TB · Tháng (com.google.gemini.2tb.ai.m)" },
+    { id: "g1.ios.ai.2tb.m.ip_3mo_75p.acq", label: "AI 2TB · 3T 75p (g1.ios.ai.2tb.m.ip_3mo_75p.acq)" },
     { id: "g1.ios.ai.2tb.m.ip_1mo_90p.acq", label: "AI 2TB · 1T 90p (g1.ios.ai.2tb.m.ip_1mo_90p.acq)" },
     { id: "g1.ios.ai.2tb.a.ip_1yr_10p.acq", label: "AI 2TB · 1Y 10p (g1.ios.ai.2tb.a.ip_1yr_10p.acq)" },
     { id: "g1.ios.20tb.m.v2", label: "Ultra 20TB · Tháng (g1.ios.20tb.m.v2)" },
@@ -354,8 +355,8 @@
   }
 
   function isValidProfile(profile) {
-    return profile === "pro-99p-slot20" || profile === "tr-ultra-legacy" ||
-      profile === "promo-90p" || profile === "ultra-75p" ||
+    return profile === "pro-99p-slot20" || profile === "pro-99p-monthly" ||
+      profile === "tr-ultra-legacy" || profile === "promo-90p" || profile === "ultra-75p" ||
       profile === "v7.6-eft" || profile === "hybrid-combo" ||
       profile === "ultra-1m-free" || profile === "ultra-free-probe" ||
       profile === "custom-only";
@@ -467,6 +468,7 @@
         if (saveConfig(cfg)) {
           var pNames = {
             "pro-99p-slot20": "Pro 3T 99% · 1-Slot 20TB (Đang sống)",
+            "pro-99p-monthly": "Pro 3T 99% · Pro tháng (v7.13)",
             "tr-ultra-legacy": "TR Ultra 20TB + 30TB giá cũ (v7.12)",
             "promo-90p": "Promo 90p / 75p (v7.5)",
             "ultra-75p": "Ultra 75p cố định (v7.8)",
@@ -1004,6 +1006,7 @@
 
   var profileOptions = [
     { id: "pro-99p-slot20", label: "Pro 3T 99% · 1-Slot 20TB", desc: "Đang sống: Chỉ đổi nút 20TB → Pro 3T 99% (tránh xung đột nhiều nút)" },
+    { id: "pro-99p-monthly", label: "Pro 3T 99% · Pro tháng (v7.13)", desc: "Đang sống: Chỉ khớp đúng 3 mã Pro/AI tháng (tránh trùng nút gói năm)" },
     { id: "tr-ultra-legacy", label: "TR Ultra 20TB+30TB cũ (v7.12)", desc: "Đang sống (TR ID): 20TB → 1.989,99 TRY · 30TB → 2.949,99 TRY" },
     { id: "promo-90p", label: "Promo 90p / 75p", desc: "2TB (theo mã đích chọn) + 20TB / 30TB ưu đãi 90p/75p" },
     { id: "ultra-75p", label: "Ultra 75p cố định (v7.8)", desc: "Dự phòng: 20/30TB → 3 tháng giảm 75% (trả 25%)" },
@@ -1222,12 +1225,12 @@
     '<div class=kpi><div class=kpi-k>Khớp thành công gần nhất</div><div class=kpi-v>' + (lastSuccess ? (lastSuccess.hitCount + ' vị trí · ' + escape(lastSuccess.profile)) : 'Chưa có') + '</div></div>',
     '</div>',
 
-    '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Cập nhật 26/11 · #1–#3 Đang sống)</h2>',
+    '<div class=card><h2>Top 5 Gói 1 Chạm cho iPhone (Cập nhật 27/11 · #1–#3 Đang sống)</h2>',
     '<p class=dim>Chạm 1 thẻ là tự cấu hình đầy đủ (Profile, Đích 2TB, Phạm vi URL &amp; Native); sau đó mở đúng ứng dụng ghi trên thẻ để kiểm tra StoreKit. Bạn cũng có thể đổi trực tiếp 5 gói này ngay trên thanh nổi trong Google App (tự tải lại tại chỗ).</p>',
     quickPacksHtml, '</div>',
 
     '<div class=card><h2>Bảng điều khiển nhanh</h2>',
-    '<h3>1. Chọn Profile mapping (9 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
+    '<h3>1. Chọn Profile mapping (10 chế độ)</h3><div class=pcard-grid>' + profileCards + '</div>',
     '<h3>2. Chế độ hoạt động</h3><div class=seg>' + modeButtons + '</div>',
     '<h3>3. Đổi nhanh mã đích 2TB (khi dùng Promo 90p)</h3><div class=pill-row>' + presetButtons + '</div>',
 
